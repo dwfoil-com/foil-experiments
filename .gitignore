@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+venv/
+.venv/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Training outputs (large files)
+checkpoints/
+*.mp4
+*.png
+*.zip
+
+# Keep docs images
+!docs/*.png
