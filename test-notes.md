@@ -20,6 +20,57 @@ Notable observations from training runs.
 - **Video**: run2_evolution.mp4
 - **Progress**: +0.8s flight time, model now survives full 10s evaluation
 
+## ent005_2M - Best Pure RL (2026-01-19)
+- **Config**: 2M steps, ent_coef=0.005, increased velocity limits (ARM 12 rad/s, LEG 2.0 m/s)
+- **Result**: 5.0s flight, 2.3Hz pump, 152° arm range
+- **Arm-leg correlation**: r=+0.44 (same-phase)
+- **Termination**: energy_exhausted (good - means survived long)
+
+---
+
+## ACMPC / CPG Experiments (2026-01-20)
+
+Explored structured approaches inspired by ACMPC (Actor-Critic MPC) research.
+
+### hybrid_v2 - ACMPC-style planner
+- **Approach**: MPC-like trajectory planner + RL learns pump parameters
+- **Result**: 2.8s flight, r=0.00 correlation, 158° arm range, 2.2Hz
+- **Problem**: Planner too rigid, couldn't adapt to altitude changes
+
+### cpg_v1 - Anti-phase CPG
+- **Approach**: Central Pattern Generator with arms opposite to legs
+- **Result**: 1.1s flight, r=-0.37 (anti-phase), dV=+0.59 m/s
+- **Problem**: Anti-phase doesn't generate lift, crashes immediately
+
+### cpg_v2_samephase - Same-phase CPG
+- **Approach**: Flipped to arms same-phase as legs (matching pure RL discovery)
+- **Result**: 1.0s flight, r=+0.36, dV=+0.51 m/s
+- **Problem**: Still crashes - phase wasn't the issue
+
+### cpg_v3_freedom - CPG with altitude offset + stronger residuals
+- **Approach**: Added altitude-responsive DC offset, 2x residual strength
+- **Result**: 1.0s flight, r=+0.12, dV=+0.70 m/s
+- **Problem**: Still crashes - sinusoidal structure fundamentally too rigid
+
+### Key Finding
+**CPG structure doesn't help this task.** All CPG variants crash in ~1s despite:
+- Good pump frequency (2.2-2.4 Hz)
+- Positive velocity change (accelerating!)
+- Various phase relationships
+
+Pure RL (5.0s) succeeds because it can make arbitrary corrections each timestep.
+The sinusoidal CPG constraint prevents real-time altitude recovery.
+
+| Approach | Flight | Arm-Leg r | Notes |
+|----------|--------|-----------|-------|
+| Pure RL (ent005_2M) | **5.0s** | +0.44 | Best result |
+| Hybrid ACMPC | 2.8s | 0.00 | Too constrained |
+| CPG anti-phase | 1.1s | -0.37 | Wrong phase |
+| CPG same-phase | 1.0s | +0.36 | Phase not the issue |
+| CPG + freedom | 1.0s | +0.12 | Structure too rigid |
+
+**Conclusion**: For pump foil, pure RL's flexibility > structured approaches.
+
 ---
 
 ## Fixes Applied
