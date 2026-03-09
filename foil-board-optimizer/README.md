@@ -1,5 +1,7 @@
 # Foil Board Internal Structure Optimizer
 
+> **Moved:** Active development continues at [mattarderne/foil-experiments](https://github.com/mattarderne/foil-experiments/tree/main/foil-board-optimizer). This copy is kept for reference.
+
 Autonomous topology optimization of hydrofoil board internal structures using
 FEA simulation and an AI-driven experimental outer loop, following the
 [Karpathy autoresearch](https://github.com/karpathy/autoresearch) pattern.
