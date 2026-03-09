@@ -21,3 +21,8 @@ MIGRATION.md
 foil_env/
 mujoco/
 venv_mujoco/
+
+# Generated outputs
+*.stl
+*.mp4
+*.avi
