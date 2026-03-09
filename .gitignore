@@ -16,7 +16,7 @@ build/
 
 # Old top-level files (not part of new structure)
 archive/
-CLAUDE.md
+/CLAUDE.md
 MIGRATION.md
 foil_env/
 mujoco/
