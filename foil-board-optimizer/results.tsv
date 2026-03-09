@@ -1,0 +1,2 @@
+timestamp	compliance	volume	stiffness_score	max_disp	nelx	nely	nelz	volfrac	penal	rmin	heaviside	move_limit	max_iter	iters	converged	E0	rider_kg	load_cases	time_s	note
+2026-03-09T08:50:12.662883	0.09693361	0.6357	41.265356	0.0001873659	28	10	4	0.35	3.0	1.5	False	0.2	100	12	True	2000000000.0	80.0	riding_normal+pumping+jump_landing+carving	9.3	baseline: default parameters, all four load cases

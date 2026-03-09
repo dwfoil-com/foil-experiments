@@ -1,0 +1,42 @@
+# Default configuration for foil board topology optimization
+# All units: meters, Pascals, Newtons, kilograms
+
+board:
+  length: 1.40        # Board length (m)
+  width: 0.50         # Board width (m)
+  thickness: 0.10     # Board thickness (m)
+  mast_mount_x: 0.45  # Mast position (fraction of length)
+  mast_mount_y: 0.50  # Mast position (fraction of width)
+
+mesh:
+  nelx: 28     # Elements along length
+  nely: 10     # Elements along width
+  nelz: 4      # Elements through thickness
+
+material:
+  E0: 2.0e9    # Young's modulus (Pa) - PETG/Nylon for 3D printing
+  nu: 0.35     # Poisson's ratio
+  Emin: 1.0e-9 # Minimum stiffness for void elements
+
+optimization:
+  method: simp
+  volfrac: 0.35   # Target volume fraction (35% material)
+  penal: 3.0      # SIMP penalization power
+  rmin: 1.5       # Filter radius (x max element size)
+  max_iter: 100   # Maximum iterations
+  tol: 0.01       # Convergence tolerance
+  use_heaviside: false
+  move_limit: 0.2 # Max density change per iteration
+
+rider:
+  weight_kg: 80.0
+  load_cases:
+    - riding_normal
+    - pumping
+    - jump_landing
+    - carving
+
+auto_research:
+  max_experiments: 30
+  experiments_per_generation: 4
+  output_dir: results
