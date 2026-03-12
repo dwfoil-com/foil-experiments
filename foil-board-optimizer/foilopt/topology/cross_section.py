@@ -104,6 +104,8 @@ class CrossSectionOptimizer:
         config: CrossSectionConfig,
         deck_force: float = 1000.0,
         mast_force_yz: Optional[np.ndarray] = None,
+        foot_force_yz: Optional[np.ndarray] = None,
+        foot_y_bounds: Optional[tuple] = None,
     ):
         """
         Args:
@@ -112,7 +114,13 @@ class CrossSectionOptimizer:
             board_shape: BoardShape from .s3dx file.
             config: Optimizer config.
             deck_force: Total downward deck force at this cross-section (N).
+                Used as fallback if foot_force_yz is None.
             mast_force_yz: [Fy, Fz] mast reaction at this slice (N). None if not mast.
+            foot_force_yz: [Fy, Fz] rider foot force vector at this slice (N).
+                Derived from Phase 1 per-load-case foot vectors. Replaces scalar
+                deck_force when set — carries both lateral and vertical components.
+            foot_y_bounds: (y_min, y_max) in metres for the foot patch on the deck.
+                If None, force is spread across the full deck width.
         """
         self.x_pos = x_pos
         self.board = board
@@ -120,6 +128,8 @@ class CrossSectionOptimizer:
         self.config = config
         self.deck_force = deck_force
         self.mast_force_yz = mast_force_yz
+        self.foot_force_yz = foot_force_yz
+        self.foot_y_bounds = foot_y_bounds
 
         nely, nelz = config.nely, config.nelz
         self.nely = nely
@@ -247,11 +257,28 @@ class CrossSectionOptimizer:
             n = self._node_id(j, 0)
             fixed.extend([2*n, 2*n + 1])
 
-        # Distributed downward load on top deck nodes
+        # Deck load: either directional foot force vector or scalar deck_force
         top_nodes = [self._node_id(j, nelz) for j in range(nely + 1)]
-        fpn = -self.deck_force / len(top_nodes)
-        for n in top_nodes:
-            f[2*n + 1] += fpn    # negative Z = downward
+        if self.foot_force_yz is not None:
+            # Apply [Fy, Fz] to foot patch (Y-bounded) or full deck if no bounds
+            if self.foot_y_bounds is not None:
+                y_lo, y_hi = self.foot_y_bounds
+                patch_nodes = [
+                    self._node_id(j, nelz) for j in range(nely + 1)
+                    if y_lo <= j * self.dy <= y_hi
+                ]
+                if not patch_nodes:
+                    patch_nodes = top_nodes   # fallback: full deck
+            else:
+                patch_nodes = top_nodes
+            fpn = self.foot_force_yz / len(patch_nodes)
+            for n in patch_nodes:
+                f[2*n    ] += fpn[0]   # Fy (lateral)
+                f[2*n + 1] += fpn[1]   # Fz (vertical, negative = downward)
+        else:
+            fpn = -self.deck_force / len(top_nodes)
+            for n in top_nodes:
+                f[2*n + 1] += fpn
 
         # Mast force: upward + lateral at hull-level mast nodes
         if self.mast_force_yz is not None:

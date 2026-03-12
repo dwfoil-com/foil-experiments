@@ -85,6 +85,66 @@ def load_mean_mast_force(meta: dict):
     return np.mean(forces, axis=0)
 
 
+def compute_slice_foot_force_yz(meta: dict, x_pos: float) -> tuple:
+    """Return weighted [Fy, Fz] foot force vector and Y-bounds for a slice.
+
+    Blends front/back foot forces based on proximity to each foot zone.
+    Falls back to (None, None) if meta lacks explicit per-foot force vectors.
+    """
+    load_cases = meta.get("load_cases", [])
+    has_explicit = any(
+        lc.get("front_foot_force") is not None or lc.get("back_foot_force") is not None
+        for lc in load_cases
+    )
+    if not has_explicit:
+        return None, None
+
+    front_x_min = meta.get("front_foot_bounds", [0, 0, 0, 0])[0]
+    front_x_max = meta.get("front_foot_bounds", [0, 0, 0, 0])[1]
+    back_x_min  = meta.get("back_foot_bounds",  [0, 0, 0, 0])[0]
+    back_x_max  = meta.get("back_foot_bounds",  [0, 0, 0, 0])[1]
+    front_y_min = meta.get("front_foot_bounds", [0, 0, 0, 0])[2]
+    front_y_max = meta.get("front_foot_bounds", [0, 0, 0, 0])[3]
+    back_y_min  = meta.get("back_foot_bounds",  [0, 0, 0, 0])[2]
+    back_y_max  = meta.get("back_foot_bounds",  [0, 0, 0, 0])[3]
+
+    # Blend weight: 1.0 at foot centre, tapering to 0 one foot-length away
+    def zone_weight(x, x_min, x_max):
+        cx = 0.5 * (x_min + x_max)
+        half = max(0.5 * (x_max - x_min), 0.01)
+        return float(max(0.0, 1.0 - abs(x - cx) / half))
+
+    w_front = zone_weight(x_pos, front_x_min, front_x_max)
+    w_back  = zone_weight(x_pos, back_x_min,  back_x_max)
+    w_total = w_front + w_back
+    if w_total < 1e-6:
+        # X is outside both zones — use equal blend
+        w_front = w_back = 0.5
+        w_total = 1.0
+
+    # Weighted mean of per-load-case foot forces
+    front_forces, back_forces = [], []
+    for lc in load_cases:
+        ff = lc.get("front_foot_force")
+        bf = lc.get("back_foot_force")
+        if ff is not None:
+            front_forces.append(np.asarray(ff, dtype=float))
+        if bf is not None:
+            back_forces.append(np.asarray(bf, dtype=float))
+
+    mean_front = np.mean(front_forces, axis=0) if front_forces else np.zeros(3)
+    mean_back  = np.mean(back_forces,  axis=0) if back_forces  else np.zeros(3)
+
+    blended_3d = (w_front * mean_front + w_back * mean_back) / w_total
+    foot_force_yz = np.array([blended_3d[1], blended_3d[2]])  # [Fy, Fz]
+
+    # Y-bounds: blend between front and back foot patch
+    y_min = (w_front * front_y_min + w_back * back_y_min) / w_total
+    y_max = (w_front * front_y_max + w_back * back_y_max) / w_total
+
+    return foot_force_yz, (y_min, y_max)
+
+
 def load_peak_vertical_deck_force(meta: dict) -> float:
     """Return the largest downward deck load magnitude across all load cases."""
     peak = 0.0
@@ -256,9 +316,15 @@ def main():
         is_mast = mast_bounds[0] <= x_pos <= mast_bounds[1]
         mast_force_yz = None
         if is_mast:
-            # Upward Z force + Y lateral from foil torque
             mast_force_yz = np.array([mean_mast_force[1], -mean_mast_force[2]])
             print(f"  mast slice: force_yz={mast_force_yz}")
+
+        # Directional foot force from Phase 1 load-case metadata
+        foot_force_yz, foot_y_bounds = compute_slice_foot_force_yz(meta, x_pos)
+        if foot_force_yz is not None:
+            # Scale magnitude by local strain energy ratio (same as deck_force)
+            foot_force_yz = foot_force_yz * se_ratio
+            print(f"  foot_force_yz={foot_force_yz}  y_bounds={foot_y_bounds}")
 
         opt = CrossSectionOptimizer(
             x_pos=x_pos,
@@ -267,6 +333,8 @@ def main():
             config=config,
             deck_force=deck_force,
             mast_force_yz=mast_force_yz,
+            foot_force_yz=foot_force_yz,
+            foot_y_bounds=foot_y_bounds,
         )
 
         print(f"  Inside: {opt._inside.sum()} / {opt.n_elem} elements  "
