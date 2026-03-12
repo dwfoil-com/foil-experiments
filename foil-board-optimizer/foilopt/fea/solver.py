@@ -307,11 +307,12 @@ class FEASolver3D:
         K = self.assemble_stiffness_fast(density)
 
         # Apply BCs by zeroing rows/cols and setting diagonal to 1
-        all_dofs = np.arange(self.ndof)
-        free_dofs = np.setdiff1d(all_dofs, fixed_dofs)
+        all_dofs = np.arange(self.ndof, dtype=np.intp)
+        free_dofs = np.setdiff1d(all_dofs, fixed_dofs).astype(np.intp)
 
-        # Extract free DOF submatrix
-        K_free = K[np.ix_(free_dofs, free_dofs)]
+        # Extract free DOF submatrix (use .tolil() for robust indexing with scipy)
+        K_lil = K.tolil()
+        K_free = K_lil[free_dofs, :][:, free_dofs].tocsc()
         f_free = f[free_dofs]
 
         # Solve
