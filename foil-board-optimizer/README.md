@@ -53,6 +53,24 @@ Phase 3 — 3D assembly (build_3d_structure.py)
   ↓ Output: structure.stl (watertight, 3D-printable), structure_overview.png
 ```
 
+## Next Steps
+
+### 1. Full-resolution Phase 2 on Modal *(most immediate)*
+Cross-sections ran at 100×30 (5mm×4mm elements) — coarse enough to lose thin ribs and arch details. At 200×60 (2.5mm×2mm) you get genuine fine-grain topology: thin-wall ribs, true lightening holes, diagonal tension members. Parallelize all 23 slices as simultaneous Modal remote calls rather than running sequentially.
+
+### 2. Extend beyond the foot zone
+Active zone is currently X=0.65–1.31m. The nose and tail are hollow. At low volfrac (10–15%), running Phase 2 on the full board length adds structural contribution — especially the tail block (mast track) and nose (impact loads).
+
+### 3. Manufacturability constraints
+- Minimum member thickness (slicer floor for nozzle diameter)
+- Maximum overhang angle (avoid internal supports)
+- Infill-to-shell bond points (print adhesion)
+
+### 4. Fiber-reinforced shell + printed core hybrid
+3D-printed internal lattice in carbon-filled nylon or PETG, wrapped with prepreg carbon outside. Currently shell and core use the same material model. Separating them (shell E=70GPa carbon, core E=5GPa print material) would change the load path and likely open the core topology more aggressively.
+
+---
+
 ## Quick Start
 
 ```bash
