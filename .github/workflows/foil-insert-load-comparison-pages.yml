@@ -1,10 +1,15 @@
-name: Foil Insert Comparison Pages
+name: Foil Experiments Pages
 
 on:
   push:
     branches:
       - main
     paths:
+      - "site/**"
+      - "foil-board-optimizer/viewer.html"
+      - "foil-board-optimizer/force_viewer.html"
+      - "foil-board-optimizer/comparison.html"
+      - "hydrofoil/mockup.html"
       - "foil-insert-load-comparison/**"
       - ".github/workflows/foil-insert-load-comparison-pages.yml"
   workflow_dispatch:
@@ -24,9 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Refresh embedded apps
+        run: bash site/refresh-embeds.sh
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: foil-insert-load-comparison
+          path: site
 
   deploy:
     needs: build

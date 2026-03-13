@@ -7,13 +7,13 @@ producing a 3D-printable internal structure rather than a hollow shell.
 ## Results
 
 ### Continuous internal structure (Phase 3 — marching cubes STL from 23 cross-sections)
-https://github.com/mattarderne/foil-experiments/raw/main/foil-board-optimizer/media/continuous-internal-structure.mp4
+https://github.com/dwfoil-com/foil-experiments/raw/main/foil-board-optimizer/media/continuous-internal-structure.mp4
 
 ### Optimized cross-section PNGs (Phase 2 — 2D SIMP at each bulkhead)
-https://github.com/mattarderne/foil-experiments/raw/main/foil-board-optimizer/media/cross-section-pngs.mp4
+https://github.com/dwfoil-com/foil-experiments/raw/main/foil-board-optimizer/media/cross-section-pngs.mp4
 
 ### Interactive HTML viewer — load transfer + safety factor overlay (Phase 1)
-https://github.com/mattarderne/foil-experiments/raw/main/foil-board-optimizer/media/viewer-board-blocks.mp4
+https://github.com/dwfoil-com/foil-experiments/raw/main/foil-board-optimizer/media/viewer-board-blocks.mp4
 
 ---
 

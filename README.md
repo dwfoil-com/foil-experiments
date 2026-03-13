@@ -24,7 +24,7 @@ Sign up at [console.anthropic.com](https://console.anthropic.com) and add an API
 ### 2. Clone this repo
 
 ```bash
-git clone https://github.com/mattarderne/foil-experiments.git
+git clone https://github.com/dwfoil-com/foil-experiments.git
 cd foil-experiments
 ```
 
