@@ -158,3 +158,9 @@ Extract body pose from pump foil videos using MediaPipe. Produces skeleton overl
 **Status:** in-progress
 
 Long-form interactive article and simulation exploring how surf hydrofoils work — lift, drag, trim, stance, pumping, and more. Inspired by [ciechanow.ski/airfoil](https://ciechanow.ski/airfoil/).
+
+---
+
+## Contributing
+
+Contributions are welcome — open an issue or pull request. The easiest way to get started is to use [Claude Cowork](https://claude.com/product/cowork) to clone the repo and explore. Each project has its own `CLAUDE.md` with context for the AI to work from.
