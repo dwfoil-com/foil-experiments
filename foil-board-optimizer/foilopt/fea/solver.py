@@ -13,7 +13,7 @@ from typing import Optional, Tuple
 import time
 
 from ..geometry.mesh import HexMesh
-from ..geometry.board import FoilBoard, LoadCase, BoardShape
+from ..geometry.board import FoilBoard, LoadCase, BoardShape, MaterialModel
 from .element import hex8_stiffness_matrix
 
 
@@ -45,17 +45,25 @@ class FEASolver3D:
         sigma_yield: float = 200.0e6,
         board_shape: Optional[BoardShape] = None,
         use_gpu: bool = False,
+        material: Optional[MaterialModel] = None,
     ):
         self.mesh = mesh
         self.board = board
-        self.E0 = E0
-        self.Emin = Emin
         self.nu = nu
         self.penal = penal
         self.sigma_yield = sigma_yield
         self.board_shape = board_shape
         self.use_gpu = use_gpu
         self._use_amg = use_gpu  # ILU-CG path: fast for large meshes on GPU nodes
+        self.material = material
+
+        # Per-element E0/Emin arrays (set by set_material_arrays or scalar fallback)
+        # These are set to scalar-broadcast arrays initially; SIMPOptimizer calls
+        # set_material_arrays() after building masks to populate per-element values.
+        self.E0 = E0
+        self.Emin = Emin
+        self._E0_arr = None  # (n_elements,) — set by set_material_arrays
+        self._Emin_arr = None
 
         # Pre-compute unit element stiffness matrix (E=1)
         self.Ke0 = hex8_stiffness_matrix(mesh.dx, mesh.dy, mesh.dz, E=1.0, nu=nu)
@@ -63,6 +71,21 @@ class FEASolver3D:
         # Pre-compute DOF mapping
         self.ndof = 3 * mesh.n_nodes
         self._build_dof_map()
+
+    def set_material_arrays(self, E0_arr: np.ndarray, Emin_arr: np.ndarray):
+        """Set per-element E0 and Emin arrays for dual-material SIMP.
+
+        After this call, assemble_stiffness_fast uses:
+            E_elem[e] = Emin_arr[e] + density[e]^p * (E0_arr[e] - Emin_arr[e])
+        """
+        self._E0_arr = np.asarray(E0_arr, dtype=np.float64)
+        self._Emin_arr = np.asarray(Emin_arr, dtype=np.float64)
+
+    def _compute_E_elem(self, density: np.ndarray) -> np.ndarray:
+        """SIMP interpolation: per-element Young's modulus."""
+        if self._E0_arr is not None:
+            return self._Emin_arr + density**self.penal * (self._E0_arr - self._Emin_arr)
+        return self.Emin + density**self.penal * (self.E0 - self.Emin)
 
     def _build_dof_map(self):
         """Build element-to-global DOF mapping."""
@@ -237,7 +260,7 @@ class FEASolver3D:
             Sparse global stiffness matrix (ndof x ndof).
         """
         # Element stiffnesses via SIMP
-        E_elem = self.Emin + density**self.penal * (self.E0 - self.Emin)
+        E_elem = self._compute_E_elem(density)
 
         # COO format assembly
         rows = []
@@ -263,7 +286,7 @@ class FEASolver3D:
 
     def assemble_stiffness_fast(self, density: np.ndarray) -> sparse.csc_matrix:
         """Fully vectorized assembly of global stiffness matrix."""
-        E_elem = self.Emin + density**self.penal * (self.E0 - self.Emin)
+        E_elem = self._compute_E_elem(density)
 
         Ke0_flat = self.Ke0.ravel()  # (576,)
 
@@ -386,7 +409,7 @@ class FEASolver3D:
         B = hex8_B_centroid(self.mesh.dx, self.mesh.dy, self.mesh.dz)  # (6, 24)
         C_unit = constitutive_matrix(1.0, self.nu)  # constitutive matrix at unit E
 
-        E_elem = self.Emin + density ** self.penal * (self.E0 - self.Emin)
+        E_elem = self._compute_E_elem(density)
 
         # Element displacements: (n_elem, 24)
         Ue = u[self.edof]

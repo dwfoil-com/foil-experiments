@@ -19,7 +19,7 @@ from typing import Optional, Callable
 from dataclasses import dataclass, field
 
 from ..geometry.mesh import HexMesh
-from ..geometry.board import FoilBoard, LoadCase, BoardShape, load_board_shape
+from ..geometry.board import FoilBoard, LoadCase, BoardShape, MaterialModel, load_board_shape
 from ..fea.solver import FEASolver3D
 from .filters import build_filter_matrix, density_filter, heaviside_projection
 
@@ -81,6 +81,8 @@ class SIMPConfig:
     """bulkhead_xmin: Slices with X centre < this (metres) are forced void. 0 = no limit."""
     bulkhead_xmax: float = 0.0
     """bulkhead_xmax: Slices with X centre > this (metres) are forced void. 0 = no limit."""
+    material: Optional[MaterialModel] = None
+    """material: Dual-material model. If None, uses legacy single-material (E0/Emin scalars)."""
 
 
 @dataclass
@@ -134,10 +136,12 @@ class SIMPOptimizer:
         self.callback = callback
         self.board_shape = board_shape or load_board_shape()
 
+        self._material = self.config.material or MaterialModel()
         self.solver = FEASolver3D(
             mesh, board, penal=self.config.penal,
             board_shape=self.board_shape,
             use_gpu=self.config.use_gpu,
+            material=self._material,
         )
 
         # Pre-compute element volume; effective_volfrac is set after masks are built
@@ -172,29 +176,58 @@ class SIMPOptimizer:
             self._inside_mask = np.ones(mesh.n_elements, dtype=bool)
             self._shell_mask = self._get_box_shell_mask()
 
+        # Build mask classifications
+        mast_tmp = board.is_in_mast_mount(centers[:, 0], centers[:, 1])
+        solid_tmp = mast_tmp | self._shell_mask
+        void_tmp = ~self._inside_mask & ~mast_tmp
+        free_tmp = ~solid_tmp & ~void_tmp
+
+        # Set per-element material arrays on the solver
+        E0_arr, Emin_arr, rho_arr = self._material.get_element_properties(
+            self._shell_mask, mesh.n_elements
+        )
+        self.solver.set_material_arrays(E0_arr, Emin_arr)
+        self._rho_arr = rho_arr  # per-element density for mass budget
+
+        if self._material.dual:
+            print(f"Dual-material: shell E={self._material.shell_E/1e9:.0f}GPa "
+                  f"({int(self._shell_mask.sum())} elems), "
+                  f"core E={self._material.core_E/1e9:.0f}GPa "
+                  f"({int(free_tmp.sum())} free elems)")
+
         # Recompute effective_volfrac relative to FREE elements so that the mass
         # target refers only to interior material (shell/mast are pre-existing structure
         # and must not consume the mass budget).
         if self.config.target_mass_kg is not None:
-            mast_tmp = board.is_in_mast_mount(centers[:, 0], centers[:, 1])
-            solid_tmp = mast_tmp | self._shell_mask
-            void_tmp = ~self._inside_mask & ~mast_tmp
-            n_free = int(np.sum(~solid_tmp & ~void_tmp))
-            vol_budget = self.config.target_mass_kg / (
-                self.config.rho_material * self._V_element
-            )
-            self._effective_volfrac = float(np.clip(vol_budget / max(n_free, 1), 0.001, 1.0))
-            free_tmp = ~solid_tmp & ~void_tmp
-            print(
-                f"Mass target: {self.config.target_mass_kg:.1f}kg "
-                f"→ {int(vol_budget)} elements → volfrac_free={self._effective_volfrac:.4f} "
-                f"({self._effective_volfrac*100:.1f}% of {n_free} free elements)"
-            )
-        else:
-            mast_tmp = board.is_in_mast_mount(centers[:, 0], centers[:, 1])
-            solid_tmp = mast_tmp | self._shell_mask
-            void_tmp = ~self._inside_mask & ~mast_tmp
-            free_tmp = ~solid_tmp & ~void_tmp
+            n_free = int(np.sum(free_tmp))
+            if self._material.dual:
+                # Dual-material mass budget: subtract realistic shell mass from target,
+                # remaining mass goes to core elements. The optimizer's forced-solid
+                # shell elements are thicker than reality (~10mm vs ~2mm), so use the
+                # MaterialModel's real-world estimate.
+                shell_mass = self._material.estimate_shell_mass(
+                    board.length, board.width, board.thickness
+                )
+                core_budget_kg = max(self.config.target_mass_kg - shell_mass, 0.0)
+                core_rho = self._material.core_rho
+                vol_budget = core_budget_kg / (core_rho * self._V_element)
+                self._effective_volfrac = float(np.clip(vol_budget / max(n_free, 1), 0.001, 1.0))
+                print(
+                    f"Mass target: {self.config.target_mass_kg:.1f}kg "
+                    f"(shell={shell_mass:.2f}kg, core budget={core_budget_kg:.2f}kg) "
+                    f"→ volfrac_free={self._effective_volfrac:.4f} "
+                    f"({self._effective_volfrac*100:.1f}% of {n_free} free elements)"
+                )
+            else:
+                vol_budget = self.config.target_mass_kg / (
+                    self.config.rho_material * self._V_element
+                )
+                self._effective_volfrac = float(np.clip(vol_budget / max(n_free, 1), 0.001, 1.0))
+                print(
+                    f"Mass target: {self.config.target_mass_kg:.1f}kg "
+                    f"→ {int(vol_budget)} elements → volfrac_free={self._effective_volfrac:.4f} "
+                    f"({self._effective_volfrac*100:.1f}% of {n_free} free elements)"
+                )
 
         # Pre-cache free-element H_max normalisation (excludes solid/void from averages)
         if self.H_max is not None:
@@ -447,8 +480,10 @@ class SIMPOptimizer:
                 u, info = self.solver.solve(xPhys, lc)
                 ce = self.solver.compute_element_compliance(xPhys, u)
                 weight = float(getattr(lc, "objective_weight", 1.0))
+                E0_e = self.solver._E0_arr if self.solver._E0_arr is not None else self.solver.E0
+                Emin_e = self.solver._Emin_arr if self.solver._Emin_arr is not None else self.solver.Emin
                 dc_lc = -config.penal * xPhys ** (config.penal - 1) * (
-                    self.solver.E0 - self.solver.Emin
+                    E0_e - Emin_e
                 ) * ce
                 total_compliance += weight * info["compliance"]
                 dc += weight * dc_lc
@@ -556,9 +591,11 @@ class SIMPOptimizer:
                 ce = self.solver.compute_element_compliance(xPhys, u)
                 weight = float(getattr(lc, "objective_weight", 1.0))
 
-                # Sensitivity of compliance w.r.t. density
+                # Sensitivity of compliance w.r.t. density (per-element E0/Emin)
+                E0_e = self.solver._E0_arr if self.solver._E0_arr is not None else self.solver.E0
+                Emin_e = self.solver._Emin_arr if self.solver._Emin_arr is not None else self.solver.Emin
                 dc_lc = -config.penal * xPhys ** (config.penal - 1) * (
-                    self.solver.E0 - self.solver.Emin
+                    E0_e - Emin_e
                 ) * ce
 
                 total_compliance += weight * info["compliance"]
