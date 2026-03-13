@@ -6,20 +6,16 @@
   <title>DW Foil Experiments</title>
   <style>
     :root {
-      --sand: #f4efe6;
-      --paper: rgba(255, 251, 245, 0.9);
-      --ink: #132127;
-      --muted: #52646b;
-      --line: rgba(19, 33, 39, 0.12);
-      --sea: #2f7177;
-      --sea-soft: #dff0ee;
-      --sun: #f0bc58;
-      --clay: #bc643c;
-      --green: #2d8b57;
-      --blue: #2a73a7;
-      --amber: #b07a18;
-      --gray: #6e7b82;
-      --shadow: 0 24px 64px rgba(22, 34, 39, 0.12);
+      --bg: #f3ecdf;
+      --paper: rgba(255, 250, 243, 0.9);
+      --card: rgba(255, 255, 255, 0.72);
+      --ink: #152229;
+      --muted: #5f6d73;
+      --line: rgba(21, 34, 41, 0.1);
+      --sea: #2d7277;
+      --sand: #ecd8b0;
+      --clay: #bd6b3f;
+      --shadow: 0 28px 70px rgba(21, 34, 41, 0.12);
     }
 
     * { box-sizing: border-box; }
@@ -30,23 +26,32 @@
       color: var(--ink);
       font-family: "Avenir Next", "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(47, 113, 119, 0.16), transparent 28%),
-        radial-gradient(circle at top right, rgba(240, 188, 88, 0.16), transparent 26%),
-        linear-gradient(180deg, #f7f2ea 0%, #efe6d8 100%);
+        radial-gradient(circle at top left, rgba(45, 114, 119, 0.14), transparent 26%),
+        radial-gradient(circle at top right, rgba(236, 216, 176, 0.24), transparent 24%),
+        linear-gradient(180deg, #f8f2e8 0%, #eee3d2 100%);
     }
 
-    a { color: inherit; text-decoration: none; }
+    body { padding: 22px 16px 48px; }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
 
     .page {
-      width: min(1300px, calc(100% - 32px));
+      width: min(1240px, 100%);
       margin: 0 auto;
-      padding: 24px 0 64px;
     }
 
     .hero,
-    .card,
-    .intro,
-    .overview {
+    .panel,
+    .footer {
       background: var(--paper);
       border: 1px solid var(--line);
       border-radius: 28px;
@@ -55,211 +60,122 @@
     }
 
     .hero {
-      padding: 30px;
+      padding: 24px 26px;
+      margin-bottom: 16px;
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-      gap: 20px;
-      margin-bottom: 18px;
+      gap: 14px;
     }
 
     .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(47, 113, 119, 0.14);
-      color: var(--sea);
       font-size: 12px;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      background: rgba(255, 255, 255, 0.55);
+      color: var(--sea);
     }
 
-    h1, h2, h3 {
+    h1,
+    h2,
+    h3 {
       margin: 0;
       font-family: "Iowan Old Style", "Palatino Linotype", serif;
-      line-height: 0.97;
+      line-height: 0.98;
     }
 
     h1 {
-      font-size: clamp(2.9rem, 6vw, 5.4rem);
-      max-width: 10ch;
-      margin-top: 18px;
+      font-size: clamp(2.7rem, 7vw, 5rem);
+      max-width: 11ch;
     }
 
     p {
       margin: 0;
       color: var(--muted);
-      line-height: 1.56;
+      line-height: 1.55;
     }
 
-    .hero-copy p {
-      margin-top: 18px;
-      max-width: 62ch;
-      font-size: 17px;
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-
-    .pill,
-    .status,
-    .action {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      border-radius: 999px;
-      font-size: 14px;
-    }
-
-    .pill {
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.75);
-      border: 1px solid rgba(19, 33, 39, 0.1);
-    }
-
-    .hero-panel {
+    .hero-copy {
       display: grid;
-      gap: 14px;
+      gap: 12px;
+      max-width: 72ch;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.58);
+      border-radius: 999px;
+      padding: 11px 15px;
+      white-space: nowrap;
+      color: var(--muted);
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .tab.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    .tab:hover { transform: translateY(-1px); }
+
+    .panel {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: minmax(300px, 0.88fr) minmax(0, 1.12fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .info {
+      display: grid;
+      gap: 16px;
       align-content: start;
     }
 
-    .mini-stat {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.76);
-      border: 1px solid rgba(19, 33, 39, 0.08);
-    }
-
-    .mini-stat strong {
-      display: block;
-      font-size: 30px;
-      margin-bottom: 6px;
-      color: var(--ink);
-    }
-
-    .overview {
-      padding: 18px 22px;
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .overview-item {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.68);
-      border: 1px solid rgba(19, 33, 39, 0.08);
-    }
-
-    .overview-item strong {
-      display: block;
-      font-size: 28px;
-      margin-bottom: 4px;
-    }
-
-    .intro {
-      padding: 22px;
-      margin-bottom: 18px;
-    }
-
-    .intro-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .intro-step {
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(19, 33, 39, 0.08);
-    }
-
-    .nav {
-      display: flex;
-      flex-wrap: wrap;
+    .status-line {
+      display: inline-flex;
+      align-items: center;
       gap: 10px;
-      margin: 0 0 18px;
-    }
-
-    .nav a {
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(19, 33, 39, 0.1);
-      border-radius: 999px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--muted);
-      font-size: 14px;
     }
 
-    .projects {
-      display: grid;
-      gap: 18px;
-    }
-
-    .card {
-      padding: 22px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .card-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
-
-    .card-title {
-      display: grid;
-      gap: 10px;
-    }
-
-    .card-title h2 {
-      font-size: clamp(2rem, 4vw, 3rem);
-    }
-
-    .status {
-      padding: 8px 12px;
-      border: 1px solid rgba(19, 33, 39, 0.1);
-      background: rgba(255, 255, 255, 0.7);
-      color: var(--ink);
-      font-weight: 600;
-    }
-
-    .status::before {
+    .status-line::before {
       content: "";
       width: 10px;
       height: 10px;
       border-radius: 999px;
-      background: var(--gray);
+      background: var(--sea);
+      box-shadow: 0 0 0 5px rgba(45, 114, 119, 0.12);
     }
 
-    .status.in-progress::before { background: var(--sea); }
-    .status.mvp::before { background: var(--green); }
-    .status.poc::before { background: var(--amber); }
-    .status.working::before { background: var(--green); }
-    .status.exploratory::before { background: var(--blue); }
-    .status.planning::before { background: var(--gray); }
+    .status-poc::before { background: #b67a22; box-shadow: 0 0 0 5px rgba(182, 122, 34, 0.14); }
+    .status-mvp::before { background: #2b8458; box-shadow: 0 0 0 5px rgba(43, 132, 88, 0.14); }
+    .status-in-progress::before { background: var(--sea); }
+    .status-planning::before { background: #7b878b; box-shadow: 0 0 0 5px rgba(123, 135, 139, 0.14); }
 
-    .card-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-      gap: 18px;
-      align-items: start;
+    .lede {
+      font-size: 18px;
+      color: var(--ink);
+      max-width: 28ch;
     }
 
-    .copy {
-      display: grid;
-      gap: 14px;
+    .summary {
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid var(--line);
     }
 
     .actions {
@@ -268,102 +184,238 @@
       gap: 10px;
     }
 
-    .action {
-      padding: 11px 14px;
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid var(--ink);
       background: var(--ink);
       color: white;
-      border: 1px solid var(--ink);
-      transition: transform 120ms ease, opacity 120ms ease;
     }
 
-    .action.secondary {
+    .button.secondary {
       background: rgba(255, 255, 255, 0.72);
       color: var(--ink);
-      border-color: rgba(19, 33, 39, 0.12);
+      border-color: var(--line);
     }
 
-    .action:hover { transform: translateY(-1px); }
-
-    .facts {
-      display: flex;
-      flex-wrap: wrap;
+    .resource-list {
+      display: grid;
       gap: 10px;
     }
 
-    .fact {
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(19, 33, 39, 0.08);
-      font-size: 14px;
-      color: var(--muted);
-    }
-
-    .media-panel {
-      display: grid;
-      gap: 12px;
-    }
-
-    .media-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .media-grid.single {
-      grid-template-columns: 1fr;
-    }
-
-    .frame,
-    .asset {
-      border-radius: 20px;
-      overflow: hidden;
-      border: 1px solid rgba(19, 33, 39, 0.1);
-      background: #f8f4ec;
-    }
-
-    iframe {
-      width: 100%;
-      height: 420px;
-      border: 0;
-      display: block;
-      background: white;
-    }
-
-    video,
-    img {
-      width: 100%;
-      display: block;
-      height: auto;
-      background: #d7d7d7;
-    }
-
-    .caption {
+    .resource-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
       padding: 12px 14px;
-      font-size: 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid var(--line);
+    }
+
+    .resource-item span {
       color: var(--muted);
-      background: rgba(255, 255, 255, 0.75);
+      font-size: 14px;
+    }
+
+    .resource-link {
+      color: var(--sea);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .story-shell {
+      border-radius: 26px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #111;
+      position: relative;
+      min-height: 640px;
+      display: grid;
+    }
+
+    .story-bars {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: grid;
+      grid-template-columns: repeat(var(--story-count), minmax(0, 1fr));
+      gap: 6px;
+      z-index: 4;
+    }
+
+    .story-bar {
+      height: 4px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .story-bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: white;
+      transition: width 120ms linear;
+    }
+
+    .story-meta {
+      position: absolute;
+      top: 28px;
+      left: 20px;
+      right: 20px;
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      color: white;
+      pointer-events: none;
+    }
+
+    .story-label {
+      padding-top: 12px;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+    }
+
+    .story-label strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .story-label span {
+      font-size: 14px;
+      opacity: 0.92;
+    }
+
+    .story-count {
+      padding-top: 12px;
+      font-size: 14px;
+      opacity: 0.92;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+    }
+
+    .story-stage {
+      position: relative;
+      display: grid;
+      min-height: 640px;
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.28), transparent 24%),
+        linear-gradient(0deg, rgba(0, 0, 0, 0.44), transparent 26%);
+    }
+
+    .story-stage img,
+    .story-stage video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      grid-area: 1 / 1;
+    }
+
+    .story-fallback {
+      grid-area: 1 / 1;
+      display: grid;
+      place-items: end start;
+      padding: 24px;
+      color: white;
+      background:
+        radial-gradient(circle at top left, rgba(45, 114, 119, 0.44), transparent 26%),
+        linear-gradient(135deg, #1f2c31 0%, #31434a 100%);
+    }
+
+    .story-fallback div {
+      max-width: 28ch;
+    }
+
+    .story-fallback strong {
+      display: block;
+      font-size: 30px;
+      margin-bottom: 10px;
+      font-family: "Iowan Old Style", "Palatino Linotype", serif;
+    }
+
+    .story-caption {
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      bottom: 18px;
+      z-index: 3;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(15, 21, 24, 0.48);
+      color: white;
+      font-size: 15px;
+      line-height: 1.45;
+      backdrop-filter: blur(12px);
+      pointer-events: none;
+    }
+
+    .story-hit {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 50%;
+      z-index: 5;
+      background: transparent;
+      border: 0;
+    }
+
+    .story-hit.prev { left: 0; }
+    .story-hit.next { right: 0; }
+
+    .story-help {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
     }
 
     .footer {
-      margin-top: 20px;
-      padding: 18px 22px;
-      border-radius: 22px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.68);
+      margin-top: 16px;
+      padding: 16px 20px;
       color: var(--muted);
     }
 
-    @media (max-width: 1000px) {
-      .hero,
-      .card-grid,
-      .intro-grid,
-      .overview {
+    @media (max-width: 1020px) {
+      .panel {
         grid-template-columns: 1fr;
       }
 
-      .media-grid {
-        grid-template-columns: 1fr;
+      .story-shell,
+      .story-stage {
+        min-height: 520px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 14px 12px 40px; }
+
+      .hero,
+      .panel {
+        border-radius: 22px;
+        padding: 16px;
+      }
+
+      .story-shell,
+      .story-stage {
+        min-height: 460px;
+      }
+
+      .resource-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .story-help {
+        text-align: left;
       }
     }
   </style>
@@ -371,356 +423,574 @@
 <body>
   <div class="page">
     <section class="hero">
+      <div class="eyebrow">DW Foil Experiment Browser</div>
       <div class="hero-copy">
-        <span class="eyebrow">DW Foil Experiment Browser</span>
-        <h1>Explore hydrofoil ideas without reading code.</h1>
+        <h1>Browse the foil experiments without digging through code.</h1>
         <p>
-          This site collects the main experiments in the DW Foil research repo and presents them as something you can browse visually: short explanations, clear status labels, videos, 3D demos, downloads, and interactive viewers. The aim is to make the work legible to a non-technical audience first.
+          Pick a tab, open the main demo, and swipe through the media like a short story. The site is meant to be the simple public front door to the structural, simulation, and motion experiments in the repo.
         </p>
-        <div class="pill-row">
-          <span class="pill">Interactive demos</span>
-          <span class="pill">Simulation results</span>
-          <span class="pill">Design experiments</span>
-          <span class="pill">Videos and STL downloads</span>
-        </div>
-      </div>
-      <div class="hero-panel">
-        <div class="mini-stat">
-          <strong>7</strong>
-          active experiment sections across board design, foil dynamics, motion capture, and explainers
-        </div>
-        <div class="mini-stat">
-          <strong>3</strong>
-          embedded interactive demos you can open directly in the browser
-        </div>
-        <div class="mini-stat">
-          <strong>10+</strong>
-          videos, viewers, and downloadable artifacts linked from the repo
-        </div>
       </div>
     </section>
 
-    <section class="overview">
-      <div class="overview-item">
-        <strong>2</strong>
-        planning-stage ideas
+    <nav class="tabs" id="tabs" aria-label="Experiments"></nav>
+
+    <section class="panel">
+      <div class="info">
+        <div class="status-line" id="status-line"></div>
+        <div>
+          <h2 id="title"></h2>
+        </div>
+        <p class="lede" id="lede"></p>
+        <div class="summary" id="summary"></div>
+        <div class="actions">
+          <a class="button" id="open-link" target="_blank" rel="noreferrer">Open</a>
+          <a class="button secondary" id="source-link" target="_blank" rel="noreferrer">View source</a>
+          <a class="button secondary" id="readme-link" target="_blank" rel="noreferrer">How to experiment</a>
+        </div>
+        <div class="resource-list" id="resources"></div>
       </div>
-      <div class="overview-item">
-        <strong>2</strong>
-        in-progress projects
-      </div>
-      <div class="overview-item">
-        <strong>2</strong>
-        working or MVP projects
-      </div>
-      <div class="overview-item">
-        <strong>1</strong>
-        proof-of-concept comparison viewer
+
+      <div>
+        <div class="story-shell" id="story-shell">
+          <div class="story-bars" id="story-bars"></div>
+          <div class="story-meta">
+            <div class="story-label">
+              <strong id="story-title"></strong>
+              <span id="story-subtitle"></span>
+            </div>
+            <div class="story-count" id="story-count"></div>
+          </div>
+          <div class="story-stage" id="story-stage"></div>
+          <div class="story-caption" id="story-caption"></div>
+          <button class="story-hit prev" id="story-prev" aria-label="Previous story"></button>
+          <button class="story-hit next" id="story-next" aria-label="Next story"></button>
+        </div>
+        <div class="story-help">Stories autoplay. Tap left or right to move through them.</div>
       </div>
     </section>
-
-    <section class="intro">
-      <h2>How To Use This Site</h2>
-      <div class="intro-grid">
-        <div class="intro-step">
-          <strong>1. Start with the short summary.</strong>
-          <p>Each project card explains what the experiment is trying to learn and why that matters in plain language.</p>
-        </div>
-        <div class="intro-step">
-          <strong>2. Watch a clip or open a demo.</strong>
-          <p>Where media exists, you can preview it immediately. Interactive viewers are linked directly from each card.</p>
-        </div>
-        <div class="intro-step">
-          <strong>3. Go deeper only if you want.</strong>
-          <p>Every section also links back to the GitHub source and project README for the full technical detail.</p>
-        </div>
-      </div>
-    </section>
-
-    <nav class="nav">
-      <a href="#board-optimizer">Board Structure</a>
-      <a href="#insert-comparison">Insert Comparison</a>
-      <a href="#rl-pump">RL Pump</a>
-      <a href="#mocap">Motion Capture</a>
-      <a href="#hydrofoil">Interactive Explainer</a>
-      <a href="#foil-design">Foil Design</a>
-      <a href="#board-design">Board CAD</a>
-    </nav>
-
-    <main class="projects">
-      <section class="card" id="board-optimizer">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status in-progress">In Progress</span>
-            <h2>Board Structure Optimizer</h2>
-            <p>AI-guided experiments that try to redesign the inside of a foil board so more of the rider’s force goes efficiently into the mast and foil.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              This is the most mature structural experiment in the repo. It takes the TT60 board shape, applies rider and mast loads, and tries to discover internal rib and lattice structures that are lighter than a conventional build but still stiff where they need to be.
-            </p>
-            <div class="facts">
-              <span class="fact">3D topology optimization</span>
-              <span class="fact">Board-shape aware</span>
-              <span class="fact">STL export</span>
-              <span class="fact">Multiple load viewers</span>
-            </div>
-            <div class="actions">
-              <a class="action" href="./apps/board/comparison.html">Open latest comparison viewer</a>
-              <a class="action secondary" href="./apps/board/viewer.html">Open board viewer</a>
-              <a class="action secondary" href="./apps/board/force_viewer.html">Open force viewer</a>
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-board-optimizer">View source</a>
-            </div>
-            <div class="actions">
-              <a class="action secondary" href="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/results/board_internal_only.stl">Download internal-only STL</a>
-              <a class="action secondary" href="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/results/complete_board_fullboard.stl">Download full-board STL</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="media-grid">
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/media/continuous-internal-structure.mp4"></video>
-                <div class="caption">Continuous 3D internal structure assembled from optimized slices.</div>
-              </div>
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/media/viewer-board-blocks.mp4"></video>
-                <div class="caption">Interactive board load viewer showing internal structure and load transfer.</div>
-              </div>
-            </div>
-            <div class="media-grid">
-              <div class="asset">
-                <img alt="Complete board overview" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/results/complete_board_overview.png">
-                <div class="caption">Complete board overview from the optimizer result set.</div>
-              </div>
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/media/cross-section-pngs.mp4"></video>
-                <div class="caption">Cross-section sweep through the optimized interior.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="insert-comparison">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status poc">Proof Of Concept</span>
-            <h2>Tuttle vs Dual-Track Insert Comparison</h2>
-            <p>A side-by-side structural comparison that isolates only the mast insert architecture inside the same TT60 board.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              This viewer holds the board outer shape fixed and lets you change only the insert dimensions and footprint shape. The goal is to compare how a Tuttle box and a dual-track cassette spread load into the shell and foam, without muddying the picture with mast flex or a different board shape.
-            </p>
-            <div class="facts">
-              <span class="fact">Actual TT60 surface</span>
-              <span class="fact">Browser-side reduced-order solve</span>
-              <span class="fact">Parametric insert sizing</span>
-              <span class="fact">Shared color scale per load case</span>
-            </div>
-            <div class="actions">
-              <a class="action" href="./apps/insert/viewer-prototype.html">Open insert comparison viewer</a>
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-insert-load-comparison">View source</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="frame">
-              <iframe loading="lazy" title="Insert comparison viewer" src="./apps/insert/viewer-prototype.html"></iframe>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="rl-pump">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status mvp">MVP / Working</span>
-            <h2>RL Pump Foil Simulation</h2>
-            <p>A reinforcement learning agent that learns to pump a foil and hold flight instead of dropping back into the water.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              The repo includes a working custom-physics RL setup and an exploratory MuJoCo branch. The practical result is simple: an agent can learn a pumping rhythm that looks close to real rider timing and sustain flight for meaningful durations.
-            </p>
-            <div class="facts">
-              <span class="fact">60+ second sustained flights</span>
-              <span class="fact">2.3 Hz pump cadence</span>
-              <span class="fact">Python RL + MuJoCo experiments</span>
-            </div>
-            <div class="actions">
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-rl-pump">View source</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="media-grid">
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/python-rl/videos/sustained_60s.mp4"></video>
-                <div class="caption">Sustained pumping flight from the trained Python RL agent.</div>
-              </div>
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/python-rl/videos/foil_size_comparison.mp4"></video>
-                <div class="caption">How foil size changes the learned pumping behavior.</div>
-              </div>
-            </div>
-            <div class="media-grid">
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/mujoco/videos/mujoco_pump_test.mp4"></video>
-                <div class="caption">MuJoCo branch: articulated-body pumping test.</div>
-              </div>
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/mujoco/videos/h1_2hz_pumping.mp4"></video>
-                <div class="caption">Alternative MuJoCo rhythm study.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="mocap">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status mvp">MVP</span>
-            <h2>Foil Motion Capture</h2>
-            <p>Pose extraction from foil videos so you can inspect body timing, rhythm, and movement patterns.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              Feed the project a foil clip and it returns skeleton overlays, trace views, and biomechanical features. This makes it easier to compare different riders or techniques without needing expensive motion-capture hardware.
-            </p>
-            <div class="facts">
-              <span class="fact">MediaPipe based</span>
-              <span class="fact">Skeleton overlay</span>
-              <span class="fact">Dots + trace view</span>
-              <span class="fact">Feature extraction</span>
-            </div>
-            <div class="actions">
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-mocap">View source</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="media-grid">
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/input/slowmo_pump.webm"></video>
-                <div class="caption">Original slow-motion input clip.</div>
-              </div>
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/output/slowmo_pump_combined.mp4"></video>
-                <div class="caption">Combined output with tracked body pose.</div>
-              </div>
-            </div>
-            <div class="media-grid single">
-              <div class="asset">
-                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/output/slowmo_pump_dots_trace.mp4"></video>
-                <div class="caption">Dots-and-trace visualization for technique analysis.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="hydrofoil">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status in-progress">In Progress</span>
-            <h2>Interactive Hydrofoil Explainer</h2>
-            <p>A visual teaching project aimed at making trim, pumping, balance, and foil behavior understandable to non-engineers.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              Think of this as the long-term “show, don’t just tell” project for hydrofoiling. It is meant to explain why setups feel fast, firm, mushy, stable, or turny, using interactive scenes instead of forum folklore.
-            </p>
-            <div class="facts">
-              <span class="fact">Interactive explainer</span>
-              <span class="fact">Non-technical teaching focus</span>
-              <span class="fact">Physics-backed visual scenes</span>
-            </div>
-            <div class="actions">
-              <a class="action" href="./apps/hydrofoil/mockup.html">Open interactive mockup</a>
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/hydrofoil">View source</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="frame">
-              <iframe loading="lazy" title="Hydrofoil mockup" src="./apps/hydrofoil/mockup.html"></iframe>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="foil-design">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status planning">Planning</span>
-            <h2>Foil Design Optimization</h2>
-            <p>A future experiment for optimizing front wings and stabilizers rather than just the board.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              This project aims to use fast aerodynamic models to search for better combinations of foil profile, planform, and stabilizer interaction. It is still at the planning stage, but the intended output is a more systematic way to reason about foil speed, low-end lift, and stability.
-            </p>
-            <div class="facts">
-              <span class="fact">Planning stage</span>
-              <span class="fact">NeuralFoil + AeroSandbox</span>
-              <span class="fact">Profile and planform optimization</span>
-            </div>
-            <div class="actions">
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-design">View project</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="asset">
-              <div class="caption">No finished public media yet. This section is listed so visitors can see the roadmap and intended direction of the experiment set.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="board-design">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="status planning">Planning</span>
-            <h2>Board Design Assistant</h2>
-            <p>A planned conversational CAD workflow for changing foil-board geometry with natural language.</p>
-          </div>
-        </div>
-        <div class="card-grid">
-          <div class="copy">
-            <p>
-              The long-term goal here is simple: describe a board change in plain language, see the geometry update, then feed that geometry straight into the structural and simulation tools. It is a planning-stage bridge between shaping, analysis, and experimentation.
-            </p>
-            <div class="facts">
-              <span class="fact">Planning stage</span>
-              <span class="fact">Conversational CAD</span>
-              <span class="fact">Linked to structural tools</span>
-            </div>
-            <div class="actions">
-              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/board-design">View project</a>
-            </div>
-          </div>
-          <div class="media-panel">
-            <div class="asset">
-              <div class="caption">No polished browser demo yet. This card exists to make the overall experiment roadmap visible to non-technical visitors.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
 
     <div class="footer">
-      This site is generated from the `dwfoil-com/foil-experiments` repo and published with GitHub Pages. Interactive viewers on this page are copied from the latest repo state at publish time so the website stays aligned with the experiments.
+      Published from the <code>dwfoil-com/foil-experiments</code> repo with GitHub Pages. The browser apps on this site are copied from the latest repo state at publish time.
     </div>
   </div>
+
+  <script>
+    const repo = "https://github.com/dwfoil-com/foil-experiments/tree/main";
+    const raw = "https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main";
+
+    const experiments = [
+      {
+        id: "board",
+        tab: "Board structure optimizer",
+        title: "Board Structure Optimizer",
+        status: "In progress",
+        statusClass: "status-in-progress",
+        lede: "AI-guided structural experiments for making foil boards lighter without losing the stiffness that matters under the mast.",
+        summary: "This is the clearest structural project in the repo today. It takes the TT60 board shape, applies rider and mast loads, and searches for internal structures that keep load paths useful while cutting unnecessary volume.",
+        open: { label: "Open", href: "./apps/board/comparison.html" },
+        source: `${repo}/foil-board-optimizer`,
+        readme: `${repo}/foil-board-optimizer/README.md`,
+        resources: [
+          { label: "Internal STL", href: `${raw}/foil-board-optimizer/results/board_internal_only.stl` },
+          { label: "Full board STL", href: `${raw}/foil-board-optimizer/results/complete_board_fullboard.stl` },
+        ],
+        stories: [
+          {
+            type: "image",
+            src: "./media/board-comparison.png",
+            title: "Live comparison viewer",
+            subtitle: "Latest browser app from foil-board-optimizer",
+            caption: "The optimizer viewer compares structural options on the real board shape and is the fastest way to understand what the project is trying to do."
+          },
+          {
+            type: "video",
+            src: `${raw}/foil-board-optimizer/media/continuous-internal-structure.mp4`,
+            title: "Internal structure build",
+            subtitle: "Optimized internal shell and rib volume",
+            caption: "A continuous internal structure assembled from the optimizer output rather than a simple block of foam."
+          },
+          {
+            type: "image",
+            src: `${raw}/foil-board-optimizer/results/complete_board_overview.png`,
+            title: "Result overview",
+            subtitle: "Full-board optimizer output",
+            caption: "One static result snapshot showing the shell and optimized interior together."
+          },
+          {
+            type: "video",
+            src: `${raw}/foil-board-optimizer/media/cross-section-pngs.mp4`,
+            title: "Cross-section sweep",
+            subtitle: "See the structure through the board",
+            caption: "A sweep through cross sections so the internal topology is easier to read."
+          },
+        ],
+      },
+      {
+        id: "insert",
+        tab: "Tuttle vs Track",
+        title: "Tuttle vs Dual-Track",
+        status: "Proof of concept",
+        statusClass: "status-poc",
+        lede: "A side-by-side insert comparison inside the same TT60 board so only the insert architecture changes.",
+        summary: "This experiment isolates the question you asked directly: if the board outer shape stays fixed, how do a Tuttle box and a dual-track cassette spread load differently into the shell and foam?",
+        open: { label: "Open", href: "./apps/insert/viewer-prototype.html" },
+        source: `${repo}/foil-insert-load-comparison`,
+        readme: `${repo}/foil-insert-load-comparison/README.md`,
+        resources: [
+          { label: "Experiment config", href: `${repo}/foil-insert-load-comparison/experiment-config.json` },
+          { label: "Viewer data", href: `${repo}/foil-insert-load-comparison/viewer-data.json` },
+        ],
+        stories: [
+          {
+            type: "image",
+            src: "./media/insert-viewer.png",
+            title: "Current insert viewer",
+            subtitle: "Tuttle on one side, dual-track on the other",
+            caption: "The browser viewer keeps the board fixed and lets you change insert shape and dimensions while comparing the resulting load field."
+          },
+          {
+            type: "image",
+            title: "What is being compared",
+            subtitle: "Same board, same mast, different insert architecture",
+            caption: "Tuttle is bonded to the top and bottom skins. The dual-track cassette is bonded only to the bottom skin. The comparison is meant to isolate that difference.",
+            fallbackTitle: "Bond path matters",
+            fallbackCopy: "This experiment is about how the insert couples into the shell, not mast flex or different board geometry."
+          },
+        ],
+      },
+      {
+        id: "pump",
+        tab: "Pump foil sim",
+        title: "Pump Foil Simulation",
+        status: "MVP / working",
+        statusClass: "status-mvp",
+        lede: "A reinforcement learning setup where an agent learns to pump a foil and stay flying instead of falling back into the water.",
+        summary: "This is the dynamics side of the repo. The practical outcome is simple: the agent learns a rhythm that looks plausible and can sustain flight long enough to be useful as an experimentation platform.",
+        open: { label: "Open", href: `${raw}/foil-rl-pump/python-rl/videos/sustained_60s.mp4` },
+        source: `${repo}/foil-rl-pump`,
+        readme: `${repo}/foil-rl-pump/README.md`,
+        resources: [
+          { label: "Python RL README", href: `${repo}/foil-rl-pump/python-rl/README.md` },
+          { label: "MuJoCo README", href: `${repo}/foil-rl-pump/mujoco/README.md` },
+        ],
+        stories: [
+          {
+            type: "video",
+            src: `${raw}/foil-rl-pump/python-rl/videos/sustained_60s.mp4`,
+            title: "Sustained 60 second run",
+            subtitle: "Trained pump rhythm",
+            caption: "The simplest headline result: the agent learns a stable pumping pattern rather than a short unstable burst."
+          },
+          {
+            type: "video",
+            src: `${raw}/foil-rl-pump/python-rl/videos/foil_size_comparison.mp4`,
+            title: "Foil size comparison",
+            subtitle: "How the learned behavior changes",
+            caption: "Changing foil size shifts the learned cadence and body timing, which is exactly the kind of sensitivity this project is useful for."
+          },
+          {
+            type: "video",
+            src: `${raw}/foil-rl-pump/mujoco/videos/mujoco_pump_test.mp4`,
+            title: "MuJoCo branch",
+            subtitle: "Alternative articulated-body simulation",
+            caption: "A parallel branch exploring whether a more explicit articulated body model can support the same kind of pumping behavior."
+          },
+        ],
+      },
+      {
+        id: "mocap",
+        tab: "Motion capture",
+        title: "Foil Motion Capture",
+        status: "MVP",
+        statusClass: "status-mvp",
+        lede: "Video-based pose tracking for studying rider timing and body movement without a dedicated motion-capture lab.",
+        summary: "The motion-capture project turns ordinary foil clips into skeleton overlays and trace views so you can compare technique visually and pull out repeatable movement features.",
+        open: { label: "Open", href: `${raw}/foil-mocap/samples/output/slowmo_pump_combined.mp4` },
+        source: `${repo}/foil-mocap`,
+        readme: `${repo}/foil-mocap/README.md`,
+        resources: [],
+        stories: [
+          {
+            type: "video",
+            src: `${raw}/foil-mocap/samples/input/slowmo_pump.webm`,
+            title: "Input clip",
+            subtitle: "Original rider footage",
+            caption: "The project starts with an ordinary foil video rather than specialist capture hardware."
+          },
+          {
+            type: "video",
+            src: `${raw}/foil-mocap/samples/output/slowmo_pump_combined.mp4`,
+            title: "Combined output",
+            subtitle: "Tracked pose over the rider",
+            caption: "Tracked joints are overlaid directly on the clip to show timing and body position changes."
+          },
+          {
+            type: "video",
+            src: `${raw}/foil-mocap/samples/output/slowmo_pump_dots_trace.mp4`,
+            title: "Trace view",
+            subtitle: "Movement pattern made easier to compare",
+            caption: "The trace view strips away visual clutter and makes the rhythm of the movement easier to see."
+          },
+        ],
+      },
+      {
+        id: "hydrofoil",
+        tab: "Hydrofoil explainer",
+        title: "Hydrofoil Explainer",
+        status: "In progress",
+        statusClass: "status-in-progress",
+        lede: "A visual teaching project aimed at explaining trim, balance, pumping, and foil feel to non-engineers.",
+        summary: "This is the communication layer of the repo. The goal is to turn foil concepts into interactive scenes that are easier to understand than forum shorthand or disconnected diagrams.",
+        open: { label: "Open", href: "./apps/hydrofoil/mockup.html" },
+        source: `${repo}/hydrofoil`,
+        readme: `${repo}/hydrofoil/README.md`,
+        resources: [],
+        stories: [
+          {
+            type: "image",
+            src: "./media/hydrofoil-mockup.png",
+            title: "Interactive mockup",
+            subtitle: "Current browser prototype",
+            caption: "The explainer is meant to become the non-technical front door for the rest of the repo: show the idea first, then let people go deeper if they want."
+          },
+        ],
+      },
+      {
+        id: "foil-design",
+        tab: "Foil design",
+        title: "Foil Design Optimization",
+        status: "Planning",
+        statusClass: "status-planning",
+        lede: "A future experiment for optimizing front wings and stabilizers, not just the board around them.",
+        summary: "This section is still early. The intended direction is a faster way to search foil planforms and profiles with a consistent workflow rather than one-off guesswork.",
+        open: { label: "Open", href: `${repo}/foil-design` },
+        source: `${repo}/foil-design`,
+        readme: `${repo}/foil-design/README.md`,
+        resources: [],
+        stories: [
+          {
+            type: "image",
+            title: "Planned next",
+            subtitle: "Wing and stabilizer search",
+            caption: "This section is listed so the public site reflects the broader experiment roadmap, not just the finished browser apps.",
+            fallbackTitle: "Foil design is next",
+            fallbackCopy: "The plan is to apply the same experimentation mindset to wing planform, profile, and stabilizer interaction."
+          },
+        ],
+      },
+      {
+        id: "board-design",
+        tab: "Board design",
+        title: "Board Design Assistant",
+        status: "Planning",
+        statusClass: "status-planning",
+        lede: "A planned conversational board-shaping workflow that links geometry changes to the structural tools.",
+        summary: "Longer term, this should bridge shaping and analysis: describe a change in plain language, update the geometry, then feed that straight into the simulations.",
+        open: { label: "Open", href: `${repo}/board-design` },
+        source: `${repo}/board-design`,
+        readme: `${repo}/board-design/README.md`,
+        resources: [],
+        stories: [
+          {
+            type: "image",
+            title: "Design workflow",
+            subtitle: "Talk to the board model, then simulate",
+            caption: "This is a planning-stage idea, but it matters because it connects the CAD side and the structural side into one loop.",
+            fallbackTitle: "Conversational board design",
+            fallbackCopy: "Describe the board change. Update the geometry. Push it straight into the structural tools."
+          },
+        ],
+      },
+      {
+        id: "resources",
+        tab: "Other resources",
+        title: "Other Resources",
+        status: "Reference stack",
+        statusClass: "status-in-progress",
+        lede: "Key outside projects and libraries that are directly relevant to the DW Foil experiments.",
+        summary: "These are the main third-party references worth knowing if you want to understand the broader technical landscape behind the repo: outside hydrofoil projects, simulation engines, geometry tools, and browser libraries.",
+        open: { label: "Open Foilphysics", href: "https://github.com/lsegessemann/foilphysics" },
+        source: "https://github.com/cdorfer/hydrofoil-profile-selection",
+        sourceLabel: "Open profile selection",
+        readme: "https://github.com/google-deepmind/mujoco",
+        readmeLabel: "Open MuJoCo",
+        resources: [
+          { label: "Foilphysics", href: "https://github.com/lsegessemann/foilphysics" },
+          { label: "Hydrofoil profile selection", href: "https://github.com/cdorfer/hydrofoil-profile-selection" },
+          { label: "MuJoCo", href: "https://github.com/google-deepmind/mujoco" },
+          { label: "MediaPipe", href: "https://github.com/google-ai-edge/mediapipe" },
+          { label: "Three.js", href: "https://github.com/mrdoob/three.js" },
+          { label: "NeuralFoil", href: "https://github.com/peterdsharpe/NeuralFoil" },
+          { label: "AeroSandbox", href: "https://github.com/peterdsharpe/AeroSandbox" },
+          { label: "Stable-Baselines3", href: "https://github.com/DLR-RM/stable-baselines3" },
+          { label: "Gymnasium", href: "https://github.com/Farama-Foundation/Gymnasium" },
+          { label: "PyTorch", href: "https://github.com/pytorch/pytorch" },
+        ],
+        stories: [
+          {
+            type: "image",
+            title: "Foilphysics",
+            subtitle: "Hydrofoil simulation reference",
+            caption: "A directly relevant outside hydrofoil project and a good reference point for how other people are structuring foil simulation work.",
+            fallbackTitle: "Foilphysics",
+            fallbackCopy: "Useful as an outside hydrofoil simulation reference when comparing modeling assumptions and tooling direction."
+          },
+          {
+            type: "image",
+            title: "Hydrofoil profile selection",
+            subtitle: "Profile choice and design reference",
+            caption: "A useful comparison point on the foil design side, especially when thinking about how profiles are selected and evaluated.",
+            fallbackTitle: "Hydrofoil profile selection",
+            fallbackCopy: "Helpful context for the planned foil-design work in this repo."
+          },
+          {
+            type: "image",
+            title: "Core external stack",
+            subtitle: "MuJoCo, MediaPipe, Three.js, NeuralFoil, AeroSandbox",
+            caption: "These are the most relevant third-party libraries behind the current experiments: simulation, pose extraction, browser visualization, and foil aerodynamics.",
+            fallbackTitle: "Key third-party libraries",
+            fallbackCopy: "MuJoCo powers articulated simulation work, MediaPipe powers motion capture, Three.js powers the browser viewers, and NeuralFoil plus AeroSandbox underpin the planned foil-design analysis."
+          },
+        ],
+      },
+    ];
+
+    const state = {
+      experimentIndex: 0,
+      storyIndex: 0,
+      rafId: 0,
+      imageStartedAt: 0,
+      imageDuration: 5200,
+      storyVideo: null,
+    };
+
+    const tabsEl = document.getElementById("tabs");
+    const titleEl = document.getElementById("title");
+    const ledeEl = document.getElementById("lede");
+    const summaryEl = document.getElementById("summary");
+    const statusEl = document.getElementById("status-line");
+    const openEl = document.getElementById("open-link");
+    const sourceEl = document.getElementById("source-link");
+    const readmeEl = document.getElementById("readme-link");
+    const resourcesEl = document.getElementById("resources");
+    const storyShellEl = document.getElementById("story-shell");
+    const storyBarsEl = document.getElementById("story-bars");
+    const storyStageEl = document.getElementById("story-stage");
+    const storyTitleEl = document.getElementById("story-title");
+    const storySubtitleEl = document.getElementById("story-subtitle");
+    const storyCountEl = document.getElementById("story-count");
+    const storyCaptionEl = document.getElementById("story-caption");
+
+    function buildTabs() {
+      experiments.forEach((experiment, index) => {
+        const button = document.createElement("button");
+        button.className = `tab${index === state.experimentIndex ? " active" : ""}`;
+        button.textContent = experiment.tab;
+        button.addEventListener("click", () => setExperiment(index));
+        tabsEl.appendChild(button);
+      });
+    }
+
+    function setExperiment(index) {
+      state.experimentIndex = index;
+      state.storyIndex = 0;
+      stopStoryLoop();
+      [...tabsEl.children].forEach((tab, tabIndex) => {
+        tab.classList.toggle("active", tabIndex === index);
+      });
+      renderExperiment();
+      renderStory(true);
+    }
+
+    function renderExperiment() {
+      const experiment = experiments[state.experimentIndex];
+      titleEl.textContent = experiment.title;
+      ledeEl.textContent = experiment.lede;
+      summaryEl.textContent = experiment.summary;
+      statusEl.textContent = experiment.status;
+      statusEl.className = `status-line ${experiment.statusClass}`;
+      openEl.textContent = experiment.open.label;
+      openEl.href = experiment.open.href;
+      sourceEl.href = experiment.source;
+      sourceEl.textContent = experiment.sourceLabel || "View source";
+      readmeEl.href = experiment.readme;
+      readmeEl.textContent = experiment.readmeLabel || "How to experiment";
+      resourcesEl.innerHTML = "";
+
+      if (!experiment.resources.length) {
+        const empty = document.createElement("div");
+        empty.className = "resource-item";
+        empty.innerHTML = "<span>No extra public assets for this one yet.</span>";
+        resourcesEl.appendChild(empty);
+        return;
+      }
+
+      experiment.resources.forEach((resource) => {
+        const row = document.createElement("div");
+        row.className = "resource-item";
+        row.innerHTML = `
+          <span>${resource.label}</span>
+          <a class="resource-link" href="${resource.href}" target="_blank" rel="noreferrer">Open asset</a>
+        `;
+        resourcesEl.appendChild(row);
+      });
+    }
+
+    function renderBars(stories) {
+      storyShellEl.style.setProperty("--story-count", stories.length);
+      storyBarsEl.innerHTML = "";
+      stories.forEach((_, index) => {
+        const bar = document.createElement("div");
+        bar.className = "story-bar";
+        const fill = document.createElement("span");
+        fill.style.width = index < state.storyIndex ? "100%" : "0%";
+        bar.appendChild(fill);
+        storyBarsEl.appendChild(bar);
+      });
+    }
+
+    function updateBarProgress(progress) {
+      const fills = [...storyBarsEl.querySelectorAll("span")];
+      fills.forEach((fill, index) => {
+        if (index < state.storyIndex) {
+          fill.style.width = "100%";
+        } else if (index > state.storyIndex) {
+          fill.style.width = "0%";
+        } else {
+          fill.style.width = `${Math.max(0, Math.min(100, progress * 100))}%`;
+        }
+      });
+    }
+
+    function stopStoryLoop() {
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = 0;
+      }
+      if (state.storyVideo) {
+        state.storyVideo.pause();
+        state.storyVideo.src = state.storyVideo.src;
+        state.storyVideo = null;
+      }
+    }
+
+    function nextStory() {
+      const stories = experiments[state.experimentIndex].stories;
+      state.storyIndex = (state.storyIndex + 1) % stories.length;
+      renderStory(true);
+    }
+
+    function prevStory() {
+      const stories = experiments[state.experimentIndex].stories;
+      state.storyIndex = (state.storyIndex - 1 + stories.length) % stories.length;
+      renderStory(true);
+    }
+
+    function mountFallback(story) {
+      const fallback = document.createElement("div");
+      fallback.className = "story-fallback";
+      fallback.innerHTML = `
+        <div>
+          <strong>${story.fallbackTitle || story.title}</strong>
+          <span>${story.fallbackCopy || story.caption}</span>
+        </div>
+      `;
+      storyStageEl.appendChild(fallback);
+    }
+
+    function loopImageStory() {
+      const startedAt = performance.now();
+      state.imageStartedAt = startedAt;
+
+      const tick = (now) => {
+        const progress = Math.min((now - startedAt) / state.imageDuration, 1);
+        updateBarProgress(progress);
+        if (progress >= 1) {
+          nextStory();
+          return;
+        }
+        state.rafId = requestAnimationFrame(tick);
+      };
+
+      state.rafId = requestAnimationFrame(tick);
+    }
+
+    function renderStory(resetBars = false) {
+      stopStoryLoop();
+      const experiment = experiments[state.experimentIndex];
+      const stories = experiment.stories;
+      const story = stories[state.storyIndex];
+      if (resetBars) {
+        renderBars(stories);
+      } else {
+        updateBarProgress(0);
+      }
+
+      storyStageEl.innerHTML = "";
+      storyTitleEl.textContent = story.title;
+      storySubtitleEl.textContent = story.subtitle || "";
+      storyCountEl.textContent = `${state.storyIndex + 1} / ${stories.length}`;
+      storyCaptionEl.textContent = story.caption;
+
+      if (story.type === "video" && story.src) {
+        const video = document.createElement("video");
+        video.src = story.src;
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "metadata";
+        video.addEventListener("loadedmetadata", () => updateBarProgress(0));
+        video.addEventListener("timeupdate", () => {
+          if (video.duration > 0) {
+            updateBarProgress(video.currentTime / video.duration);
+          }
+        });
+        video.addEventListener("ended", nextStory);
+        video.addEventListener("error", () => {
+          mountFallback(story);
+          loopImageStory();
+        });
+        storyStageEl.appendChild(video);
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(() => {
+            mountFallback(story);
+            loopImageStory();
+          });
+        }
+        state.storyVideo = video;
+        return;
+      }
+
+      if (story.type === "image" && story.src) {
+        const image = document.createElement("img");
+        image.src = story.src;
+        image.alt = story.title;
+        image.addEventListener("error", () => {
+          image.remove();
+          mountFallback(story);
+        });
+        storyStageEl.appendChild(image);
+      } else {
+        mountFallback(story);
+      }
+
+      loopImageStory();
+    }
+
+    document.getElementById("story-next").addEventListener("click", nextStory);
+    document.getElementById("story-prev").addEventListener("click", prevStory);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopStoryLoop();
+        return;
+      }
+      renderStory(true);
+    });
+
+    buildTabs();
+    renderExperiment();
+    renderStory(true);
+  </script>
 </body>
 </html>
