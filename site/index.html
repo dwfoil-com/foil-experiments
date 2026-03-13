@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DW Foil Experiments</title>
+  <style>
+    :root {
+      --sand: #f4efe6;
+      --paper: rgba(255, 251, 245, 0.9);
+      --ink: #132127;
+      --muted: #52646b;
+      --line: rgba(19, 33, 39, 0.12);
+      --sea: #2f7177;
+      --sea-soft: #dff0ee;
+      --sun: #f0bc58;
+      --clay: #bc643c;
+      --green: #2d8b57;
+      --blue: #2a73a7;
+      --amber: #b07a18;
+      --gray: #6e7b82;
+      --shadow: 0 24px 64px rgba(22, 34, 39, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--ink);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(47, 113, 119, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(240, 188, 88, 0.16), transparent 26%),
+        linear-gradient(180deg, #f7f2ea 0%, #efe6d8 100%);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .page {
+      width: min(1300px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 64px;
+    }
+
+    .hero,
+    .card,
+    .intro,
+    .overview {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero {
+      padding: 30px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(47, 113, 119, 0.14);
+      color: var(--sea);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", serif;
+      line-height: 0.97;
+    }
+
+    h1 {
+      font-size: clamp(2.9rem, 6vw, 5.4rem);
+      max-width: 10ch;
+      margin-top: 18px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.56;
+    }
+
+    .hero-copy p {
+      margin-top: 18px;
+      max-width: 62ch;
+      font-size: 17px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .pill,
+    .status,
+    .action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      font-size: 14px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(19, 33, 39, 0.1);
+    }
+
+    .hero-panel {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .mini-stat {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(19, 33, 39, 0.08);
+    }
+
+    .mini-stat strong {
+      display: block;
+      font-size: 30px;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+
+    .overview {
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .overview-item {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(19, 33, 39, 0.08);
+    }
+
+    .overview-item strong {
+      display: block;
+      font-size: 28px;
+      margin-bottom: 4px;
+    }
+
+    .intro {
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .intro-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .intro-step {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(19, 33, 39, 0.08);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0 0 18px;
+    }
+
+    .nav a {
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(19, 33, 39, 0.1);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .projects {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      display: grid;
+      gap: 10px;
+    }
+
+    .card-title h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+    }
+
+    .status {
+      padding: 8px 12px;
+      border: 1px solid rgba(19, 33, 39, 0.1);
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .status::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--gray);
+    }
+
+    .status.in-progress::before { background: var(--sea); }
+    .status.mvp::before { background: var(--green); }
+    .status.poc::before { background: var(--amber); }
+    .status.working::before { background: var(--green); }
+    .status.exploratory::before { background: var(--blue); }
+    .status.planning::before { background: var(--gray); }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .copy {
+      display: grid;
+      gap: 14px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .action {
+      padding: 11px 14px;
+      background: var(--ink);
+      color: white;
+      border: 1px solid var(--ink);
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    .action.secondary {
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink);
+      border-color: rgba(19, 33, 39, 0.12);
+    }
+
+    .action:hover { transform: translateY(-1px); }
+
+    .facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .fact {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(19, 33, 39, 0.08);
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .media-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .media-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .frame,
+    .asset {
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(19, 33, 39, 0.1);
+      background: #f8f4ec;
+    }
+
+    iframe {
+      width: 100%;
+      height: 420px;
+      border: 0;
+      display: block;
+      background: white;
+    }
+
+    video,
+    img {
+      width: 100%;
+      display: block;
+      height: auto;
+      background: #d7d7d7;
+    }
+
+    .caption {
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    .footer {
+      margin-top: 20px;
+      padding: 18px 22px;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--muted);
+    }
+
+    @media (max-width: 1000px) {
+      .hero,
+      .card-grid,
+      .intro-grid,
+      .overview {
+        grid-template-columns: 1fr;
+      }
+
+      .media-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">DW Foil Experiment Browser</span>
+        <h1>Explore hydrofoil ideas without reading code.</h1>
+        <p>
+          This site collects the main experiments in the DW Foil research repo and presents them as something you can browse visually: short explanations, clear status labels, videos, 3D demos, downloads, and interactive viewers. The aim is to make the work legible to a non-technical audience first.
+        </p>
+        <div class="pill-row">
+          <span class="pill">Interactive demos</span>
+          <span class="pill">Simulation results</span>
+          <span class="pill">Design experiments</span>
+          <span class="pill">Videos and STL downloads</span>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="mini-stat">
+          <strong>7</strong>
+          active experiment sections across board design, foil dynamics, motion capture, and explainers
+        </div>
+        <div class="mini-stat">
+          <strong>3</strong>
+          embedded interactive demos you can open directly in the browser
+        </div>
+        <div class="mini-stat">
+          <strong>10+</strong>
+          videos, viewers, and downloadable artifacts linked from the repo
+        </div>
+      </div>
+    </section>
+
+    <section class="overview">
+      <div class="overview-item">
+        <strong>2</strong>
+        planning-stage ideas
+      </div>
+      <div class="overview-item">
+        <strong>2</strong>
+        in-progress projects
+      </div>
+      <div class="overview-item">
+        <strong>2</strong>
+        working or MVP projects
+      </div>
+      <div class="overview-item">
+        <strong>1</strong>
+        proof-of-concept comparison viewer
+      </div>
+    </section>
+
+    <section class="intro">
+      <h2>How To Use This Site</h2>
+      <div class="intro-grid">
+        <div class="intro-step">
+          <strong>1. Start with the short summary.</strong>
+          <p>Each project card explains what the experiment is trying to learn and why that matters in plain language.</p>
+        </div>
+        <div class="intro-step">
+          <strong>2. Watch a clip or open a demo.</strong>
+          <p>Where media exists, you can preview it immediately. Interactive viewers are linked directly from each card.</p>
+        </div>
+        <div class="intro-step">
+          <strong>3. Go deeper only if you want.</strong>
+          <p>Every section also links back to the GitHub source and project README for the full technical detail.</p>
+        </div>
+      </div>
+    </section>
+
+    <nav class="nav">
+      <a href="#board-optimizer">Board Structure</a>
+      <a href="#insert-comparison">Insert Comparison</a>
+      <a href="#rl-pump">RL Pump</a>
+      <a href="#mocap">Motion Capture</a>
+      <a href="#hydrofoil">Interactive Explainer</a>
+      <a href="#foil-design">Foil Design</a>
+      <a href="#board-design">Board CAD</a>
+    </nav>
+
+    <main class="projects">
+      <section class="card" id="board-optimizer">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status in-progress">In Progress</span>
+            <h2>Board Structure Optimizer</h2>
+            <p>AI-guided experiments that try to redesign the inside of a foil board so more of the rider’s force goes efficiently into the mast and foil.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              This is the most mature structural experiment in the repo. It takes the TT60 board shape, applies rider and mast loads, and tries to discover internal rib and lattice structures that are lighter than a conventional build but still stiff where they need to be.
+            </p>
+            <div class="facts">
+              <span class="fact">3D topology optimization</span>
+              <span class="fact">Board-shape aware</span>
+              <span class="fact">STL export</span>
+              <span class="fact">Multiple load viewers</span>
+            </div>
+            <div class="actions">
+              <a class="action" href="./apps/board/comparison.html">Open latest comparison viewer</a>
+              <a class="action secondary" href="./apps/board/viewer.html">Open board viewer</a>
+              <a class="action secondary" href="./apps/board/force_viewer.html">Open force viewer</a>
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-board-optimizer">View source</a>
+            </div>
+            <div class="actions">
+              <a class="action secondary" href="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/results/board_internal_only.stl">Download internal-only STL</a>
+              <a class="action secondary" href="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/results/complete_board_fullboard.stl">Download full-board STL</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="media-grid">
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/media/continuous-internal-structure.mp4"></video>
+                <div class="caption">Continuous 3D internal structure assembled from optimized slices.</div>
+              </div>
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/media/viewer-board-blocks.mp4"></video>
+                <div class="caption">Interactive board load viewer showing internal structure and load transfer.</div>
+              </div>
+            </div>
+            <div class="media-grid">
+              <div class="asset">
+                <img alt="Complete board overview" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/results/complete_board_overview.png">
+                <div class="caption">Complete board overview from the optimizer result set.</div>
+              </div>
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-board-optimizer/media/cross-section-pngs.mp4"></video>
+                <div class="caption">Cross-section sweep through the optimized interior.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="insert-comparison">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status poc">Proof Of Concept</span>
+            <h2>Tuttle vs Dual-Track Insert Comparison</h2>
+            <p>A side-by-side structural comparison that isolates only the mast insert architecture inside the same TT60 board.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              This viewer holds the board outer shape fixed and lets you change only the insert dimensions and footprint shape. The goal is to compare how a Tuttle box and a dual-track cassette spread load into the shell and foam, without muddying the picture with mast flex or a different board shape.
+            </p>
+            <div class="facts">
+              <span class="fact">Actual TT60 surface</span>
+              <span class="fact">Browser-side reduced-order solve</span>
+              <span class="fact">Parametric insert sizing</span>
+              <span class="fact">Shared color scale per load case</span>
+            </div>
+            <div class="actions">
+              <a class="action" href="./apps/insert/viewer-prototype.html">Open insert comparison viewer</a>
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-insert-load-comparison">View source</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="frame">
+              <iframe loading="lazy" title="Insert comparison viewer" src="./apps/insert/viewer-prototype.html"></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="rl-pump">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status mvp">MVP / Working</span>
+            <h2>RL Pump Foil Simulation</h2>
+            <p>A reinforcement learning agent that learns to pump a foil and hold flight instead of dropping back into the water.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              The repo includes a working custom-physics RL setup and an exploratory MuJoCo branch. The practical result is simple: an agent can learn a pumping rhythm that looks close to real rider timing and sustain flight for meaningful durations.
+            </p>
+            <div class="facts">
+              <span class="fact">60+ second sustained flights</span>
+              <span class="fact">2.3 Hz pump cadence</span>
+              <span class="fact">Python RL + MuJoCo experiments</span>
+            </div>
+            <div class="actions">
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-rl-pump">View source</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="media-grid">
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/python-rl/videos/sustained_60s.mp4"></video>
+                <div class="caption">Sustained pumping flight from the trained Python RL agent.</div>
+              </div>
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/python-rl/videos/foil_size_comparison.mp4"></video>
+                <div class="caption">How foil size changes the learned pumping behavior.</div>
+              </div>
+            </div>
+            <div class="media-grid">
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/mujoco/videos/mujoco_pump_test.mp4"></video>
+                <div class="caption">MuJoCo branch: articulated-body pumping test.</div>
+              </div>
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-rl-pump/mujoco/videos/h1_2hz_pumping.mp4"></video>
+                <div class="caption">Alternative MuJoCo rhythm study.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="mocap">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status mvp">MVP</span>
+            <h2>Foil Motion Capture</h2>
+            <p>Pose extraction from foil videos so you can inspect body timing, rhythm, and movement patterns.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              Feed the project a foil clip and it returns skeleton overlays, trace views, and biomechanical features. This makes it easier to compare different riders or techniques without needing expensive motion-capture hardware.
+            </p>
+            <div class="facts">
+              <span class="fact">MediaPipe based</span>
+              <span class="fact">Skeleton overlay</span>
+              <span class="fact">Dots + trace view</span>
+              <span class="fact">Feature extraction</span>
+            </div>
+            <div class="actions">
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-mocap">View source</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="media-grid">
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/input/slowmo_pump.webm"></video>
+                <div class="caption">Original slow-motion input clip.</div>
+              </div>
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/output/slowmo_pump_combined.mp4"></video>
+                <div class="caption">Combined output with tracked body pose.</div>
+              </div>
+            </div>
+            <div class="media-grid single">
+              <div class="asset">
+                <video controls muted playsinline preload="metadata" src="https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/output/slowmo_pump_dots_trace.mp4"></video>
+                <div class="caption">Dots-and-trace visualization for technique analysis.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="hydrofoil">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status in-progress">In Progress</span>
+            <h2>Interactive Hydrofoil Explainer</h2>
+            <p>A visual teaching project aimed at making trim, pumping, balance, and foil behavior understandable to non-engineers.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              Think of this as the long-term “show, don’t just tell” project for hydrofoiling. It is meant to explain why setups feel fast, firm, mushy, stable, or turny, using interactive scenes instead of forum folklore.
+            </p>
+            <div class="facts">
+              <span class="fact">Interactive explainer</span>
+              <span class="fact">Non-technical teaching focus</span>
+              <span class="fact">Physics-backed visual scenes</span>
+            </div>
+            <div class="actions">
+              <a class="action" href="./apps/hydrofoil/mockup.html">Open interactive mockup</a>
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/hydrofoil">View source</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="frame">
+              <iframe loading="lazy" title="Hydrofoil mockup" src="./apps/hydrofoil/mockup.html"></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="foil-design">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status planning">Planning</span>
+            <h2>Foil Design Optimization</h2>
+            <p>A future experiment for optimizing front wings and stabilizers rather than just the board.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              This project aims to use fast aerodynamic models to search for better combinations of foil profile, planform, and stabilizer interaction. It is still at the planning stage, but the intended output is a more systematic way to reason about foil speed, low-end lift, and stability.
+            </p>
+            <div class="facts">
+              <span class="fact">Planning stage</span>
+              <span class="fact">NeuralFoil + AeroSandbox</span>
+              <span class="fact">Profile and planform optimization</span>
+            </div>
+            <div class="actions">
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/foil-design">View project</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="asset">
+              <div class="caption">No finished public media yet. This section is listed so visitors can see the roadmap and intended direction of the experiment set.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="board-design">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="status planning">Planning</span>
+            <h2>Board Design Assistant</h2>
+            <p>A planned conversational CAD workflow for changing foil-board geometry with natural language.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="copy">
+            <p>
+              The long-term goal here is simple: describe a board change in plain language, see the geometry update, then feed that geometry straight into the structural and simulation tools. It is a planning-stage bridge between shaping, analysis, and experimentation.
+            </p>
+            <div class="facts">
+              <span class="fact">Planning stage</span>
+              <span class="fact">Conversational CAD</span>
+              <span class="fact">Linked to structural tools</span>
+            </div>
+            <div class="actions">
+              <a class="action secondary" href="https://github.com/dwfoil-com/foil-experiments/tree/main/board-design">View project</a>
+            </div>
+          </div>
+          <div class="media-panel">
+            <div class="asset">
+              <div class="caption">No polished browser demo yet. This card exists to make the overall experiment roadmap visible to non-technical visitors.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="footer">
+      This site is generated from the `dwfoil-com/foil-experiments` repo and published with GitHub Pages. Interactive viewers on this page are copied from the latest repo state at publish time so the website stays aligned with the experiments.
+    </div>
+  </div>
+</body>
+</html>
