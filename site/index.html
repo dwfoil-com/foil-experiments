@@ -97,13 +97,21 @@
       max-width: 96ch;
     }
 
+    .tabs-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
     .tabs {
       display: flex;
       gap: 10px;
       overflow-x: auto;
       padding-bottom: 4px;
-      margin-bottom: 16px;
       scrollbar-width: none;
+      flex: 1;
+      min-width: 0;
     }
 
     .tabs::-webkit-scrollbar { display: none; }
@@ -126,12 +134,36 @@
 
     .tab:hover { transform: translateY(-1px); }
 
+    .tab-pinned {
+      border: 1px solid var(--sea);
+      background: rgba(45, 114, 119, 0.1);
+      border-radius: 999px;
+      padding: 11px 15px;
+      white-space: nowrap;
+      color: var(--sea);
+      font-weight: 600;
+      flex-shrink: 0;
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .tab-pinned.active {
+      background: var(--sea);
+      color: white;
+      border-color: var(--sea);
+    }
+
+    .tab-pinned:hover { transform: translateY(-1px); }
+
     .panel {
       padding: 18px;
       display: grid;
       grid-template-columns: minmax(300px, 0.88fr) minmax(0, 1.12fr);
       gap: 18px;
       align-items: stretch;
+    }
+
+    .panel.no-stories {
+      grid-template-columns: 1fr;
     }
 
     .info {
@@ -167,6 +199,10 @@
     .lede {
       font-size: 18px;
       color: var(--ink);
+      max-width: 48ch;
+    }
+
+    .panel:not(.no-stories) .lede {
       max-width: 28ch;
     }
 
@@ -215,6 +251,11 @@
       border-radius: 16px;
       background: rgba(255, 255, 255, 0.62);
       border: 1px solid var(--line);
+      transition: background 120ms ease;
+    }
+
+    a.resource-item:hover {
+      background: rgba(255, 255, 255, 0.88);
     }
 
     .resource-item span {
@@ -431,7 +472,10 @@
       </div>
     </section>
 
-    <nav class="tabs" id="tabs" aria-label="Experiments"></nav>
+    <div class="tabs-row">
+      <nav class="tabs" id="tabs" aria-label="Experiments"></nav>
+      <button class="tab-pinned" id="tab-pinned">Get started</button>
+    </div>
 
     <section class="panel">
       <div class="info">
@@ -481,6 +525,8 @@
       {
         id: "get-started",
         tab: "Get started",
+        pinned: true,
+        noStoryViewer: true,
         title: "Get Started",
         status: "Non-technical setup",
         statusClass: "status-in-progress",
@@ -681,6 +727,7 @@
       {
         id: "hydrofoil",
         tab: "Hydrofoil explainer",
+        noStoryViewer: true,
         title: "Hydrofoil Explainer",
         status: "In progress",
         statusClass: "status-in-progress",
@@ -703,6 +750,7 @@
       {
         id: "foil-design",
         tab: "Foil design",
+        noStoryViewer: true,
         title: "Foil Design Optimization",
         status: "Planning",
         statusClass: "status-planning",
@@ -726,6 +774,7 @@
       {
         id: "board-design",
         tab: "Board design",
+        noStoryViewer: true,
         title: "Board Design Assistant",
         status: "Planning",
         statusClass: "status-planning",
@@ -749,6 +798,7 @@
       {
         id: "resources",
         tab: "Other resources",
+        noStoryViewer: true,
         title: "Other Resources",
         status: "Reference stack",
         statusClass: "status-in-progress",
@@ -826,29 +876,46 @@
     const storyCountEl = document.getElementById("story-count");
     const storyCaptionEl = document.getElementById("story-caption");
 
+    const pinnedIndex = experiments.findIndex(e => e.pinned);
+    const pinnedTabEl = document.getElementById("tab-pinned");
+
     function buildTabs() {
       experiments.forEach((experiment, index) => {
+        if (experiment.pinned) return;
         const button = document.createElement("button");
         button.className = `tab${index === state.experimentIndex ? " active" : ""}`;
         button.textContent = experiment.tab;
         button.addEventListener("click", () => setExperiment(index));
         tabsEl.appendChild(button);
       });
+      pinnedTabEl.addEventListener("click", () => setExperiment(pinnedIndex));
     }
 
     function setExperiment(index) {
       state.experimentIndex = index;
       state.storyIndex = 0;
       stopStoryLoop();
-      [...tabsEl.children].forEach((tab, tabIndex) => {
-        tab.classList.toggle("active", tabIndex === index);
+      const isPinned = experiments[index].pinned;
+      pinnedTabEl.classList.toggle("active", isPinned);
+      let scrollTabIndex = 0;
+      experiments.forEach((exp, i) => {
+        if (exp.pinned) return;
+        const tabEl = tabsEl.children[scrollTabIndex];
+        if (tabEl) tabEl.classList.toggle("active", i === index);
+        scrollTabIndex++;
       });
       renderExperiment();
-      renderStory(true);
     }
+
+    const panelEl = document.querySelector(".panel");
+    const storyColumn = storyShellEl.parentElement;
+    const storyHelpEl = document.querySelector(".story-help");
 
     function renderExperiment() {
       const experiment = experiments[state.experimentIndex];
+      const hideStories = !!experiment.noStoryViewer;
+      panelEl.classList.toggle("no-stories", hideStories);
+      storyColumn.style.display = hideStories ? "none" : "";
       titleEl.textContent = experiment.title;
       ledeEl.textContent = experiment.lede;
       summaryEl.textContent = experiment.summary;
@@ -862,6 +929,10 @@
       readmeEl.textContent = experiment.readmeLabel || "How to experiment";
       resourcesEl.innerHTML = "";
 
+      if (!hideStories) {
+        renderStory(true);
+      }
+
       if (!experiment.resources.length) {
         const empty = document.createElement("div");
         empty.className = "resource-item";
@@ -871,12 +942,12 @@
       }
 
       experiment.resources.forEach((resource) => {
-        const row = document.createElement("div");
+        const row = document.createElement("a");
         row.className = "resource-item";
-        row.innerHTML = `
-          <span>${resource.label}</span>
-          <a class="resource-link" href="${resource.href}" target="_blank" rel="noreferrer">Open asset</a>
-        `;
+        row.href = resource.href;
+        row.target = "_blank";
+        row.rel = "noreferrer";
+        row.innerHTML = `<span>${resource.label}</span><span class="resource-link">&rarr;</span>`;
         resourcesEl.appendChild(row);
       });
     }
@@ -1030,12 +1101,15 @@
         stopStoryLoop();
         return;
       }
-      renderStory(true);
+      if (!experiments[state.experimentIndex].noStoryViewer) {
+        renderStory(true);
+      }
     });
 
+    // Start on the first non-pinned experiment
+    state.experimentIndex = experiments.findIndex(e => !e.pinned);
     buildTabs();
     renderExperiment();
-    renderStory(true);
   </script>
 </body>
 </html>
