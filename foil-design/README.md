@@ -128,6 +128,7 @@ foil-design/
 | AeroPy | XFoil wrapper with CST parameterization | [GitHub](https://github.com/leal26/AeroPy) |
 | OF2 | Open-source kitesurf hydrofoil hardware | [GitHub](https://github.com/ludopenfoil/OF2) |
 | hydrofoil-profile-selection | Hydrofoil mast profile optimizer — evaluates structural rigidity (Iy/Ix) vs drag across symmetric airfoils using viiflow CFD. Useful reference for jointly optimizing aero + structural metrics | [GitHub](https://github.com/cdorfer/hydrofoil-profile-selection) |
+| cadquery_hydrofoil | Programmatic 3D hydrofoil wing CAD with CadQuery — builds wings from airfoil profiles + planform silhouette images. Useful for export/manufacturing pipeline | [GitHub](https://github.com/foil-freak/cadquery_hydrofoil) |
 
 ## Getting Started (when ready to build)
 
