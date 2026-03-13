@@ -273,6 +273,7 @@ def build(result_dir: str, output_path: str = "viewer.html", s3dx_path: str = No
       <button class="btn" id="btn-lc-landing">Landing</button>
       <button class="btn" id="btn-lc-carving">Carving</button>
       <button class="btn" id="btn-strength">Strength</button>
+      <button class="btn" id="btn-blend">Blend</button>
     </div>
   </div>
 
@@ -280,6 +281,14 @@ def build(result_dir: str, output_path: str = "viewer.html", s3dx_path: str = No
     <div style="font-size:11px;opacity:0.6;margin-bottom:4px">Safety factor (yield margin)</div>
     <div style="height:8px;border-radius:4px;background:linear-gradient(to right,#c1121f,#e85d04,#ffd166,#40c057);margin-bottom:2px"></div>
     <div style="display:flex;justify-content:space-between;font-size:10px;opacity:0.4"><span>&lt;2 critical</span><span>4</span><span>6</span><span>&gt;8 safe</span></div>
+  </div>
+
+  <div id="blend-panel" style="display:none;margin-top:8px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px">
+    <div style="font-size:11px;opacity:0.6;margin-bottom:6px">Load case blend (drag to adjust)</div>
+    <div id="blend-sliders"></div>
+    <div style="height:8px;border-radius:4px;background:linear-gradient(to right,#1133ff,#00cccc,#33cc33,#ffcc00,#ff3300);margin:6px 0 2px 0"></div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;opacity:0.4"><span>low SE</span><span>high SE</span></div>
+    <div id="blend-compliance" style="font-size:11px;margin-top:6px;opacity:0.7"></div>
   </div>
 
   <div class="btn-row">
@@ -566,6 +575,10 @@ function buildStructure(threshold, clipXPct, clipZPct) {{
     }}
   }}
 
+  // Pre-compute blended SE max for normalization
+  let _blendMax = 1;
+  if (activeColorMode === 'blend') _blendMax = getBlendedMax();
+
   // Build structural mesh
   if (count > 0) {{
     const iMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, count);
@@ -599,6 +612,23 @@ function buildStructure(threshold, clipXPct, clipZPct) {{
             }} else {{
               const t2 = (t - 0.67) * 3;
               colorAttr.setXYZ(vi, 0.9 - 0.65*t2, 0.8 + 0.15*t2, 0.18 - 0.12*t2);
+            }}
+          }} else if (activeColorMode === 'blend') {{
+            // Blended strain energy from all load cases weighted by sliders
+            const se = computeBlendedSE(idx);
+            const seMax = _blendMax || 1;
+            const s = Math.max(0, Math.min(1, Math.sqrt(se / seMax)));
+            if (s < 0.25) {{
+              colorAttr.setXYZ(vi, 0.1, 0.2 + 2.4*s, 0.6 + 1.6*s);
+            }} else if (s < 0.5) {{
+              const t2 = (s - 0.25) * 4;
+              colorAttr.setXYZ(vi, 0.1 + 0.8*t2, 0.8, 1.0 - 0.6*t2);
+            }} else if (s < 0.75) {{
+              const t2 = (s - 0.5) * 4;
+              colorAttr.setXYZ(vi, 0.9, 0.8 - 0.4*t2, 0.4 - 0.3*t2);
+            }} else {{
+              const t2 = (s - 0.75) * 4;
+              colorAttr.setXYZ(vi, 0.9 + 0.1*t2, 0.4 - 0.35*t2, 0.1 - 0.05*t2);
             }}
           }} else {{
             // Strain energy heat map: blue → cyan → green → yellow → red
@@ -731,6 +761,7 @@ const lcMap = {{
   'btn-lc-landing': 'jump_landing',
   'btn-lc-carving': 'carving',
   'btn-strength': 'strength',
+  'btn-blend': 'blend',
 }};
 for (const [btnId, lcName] of Object.entries(lcMap)) {{
   const btn = document.getElementById(btnId);
@@ -746,8 +777,207 @@ for (const [btnId, lcName] of Object.entries(lcMap)) {{
     buildStructure(currentThresh, currentClipX, currentClipZ);
     document.getElementById('strength-legend').style.display =
       lcName === 'strength' ? 'block' : 'none';
+    document.getElementById('blend-panel').style.display =
+      lcName === 'blend' ? 'block' : 'none';
+    if (lcName === 'blend') updateForceArrows();
   }});
 }}
+
+// === BLEND MODE: per-load-case sliders ===
+const blendWeights = {{}};
+const lcColors = {{
+  'riding_normal': '#4488ff',
+  'pumping': '#ff8844',
+  'jump_landing': '#ff4444',
+  'carving': '#ffcc00',
+  'front_foot_drive': '#44ff88',
+  'back_foot_drive': '#8844ff',
+}};
+
+// Build blend sliders
+const blendDiv = document.getElementById('blend-sliders');
+for (const lc of meta.load_cases) {{
+  blendWeights[lc.name] = 1.0;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:4px 0';
+
+  const dot = document.createElement('span');
+  dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${{lcColors[lc.name] || '#888'}};flex-shrink:0`;
+  row.appendChild(dot);
+
+  const name = document.createElement('span');
+  name.style.cssText = 'font-size:11px;width:70px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  name.textContent = lc.name.replace(/_/g, ' ');
+  row.appendChild(name);
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = '200';
+  slider.value = '100';
+  slider.step = '5';
+  slider.style.cssText = 'flex:1;accent-color:' + (lcColors[lc.name] || '#888');
+  row.appendChild(slider);
+
+  const val = document.createElement('span');
+  val.style.cssText = 'font-size:10px;min-width:32px;text-align:right;opacity:0.6';
+  val.textContent = '100%';
+  row.appendChild(val);
+
+  slider.addEventListener('input', () => {{
+    blendWeights[lc.name] = parseInt(slider.value) / 100.0;
+    val.textContent = slider.value + '%';
+    if (activeColorMode === 'blend') {{
+      buildStructure(currentThresh, currentClipX, currentClipZ);
+      updateForceArrows();
+      updateBlendCompliance();
+    }}
+  }});
+
+  blendDiv.appendChild(row);
+}}
+
+function computeBlendedSE(idx) {{
+  let total = 0;
+  for (const [name, w] of Object.entries(blendWeights)) {{
+    const se = strainEnergy[name];
+    if (se) total += w * se[idx];
+  }}
+  return total;
+}}
+
+// Fixed baseline: max SE when all sliders at 100%
+let _baselineMax = null;
+function getBaselineMax() {{
+  if (_baselineMax !== null) return _baselineMax;
+  let mx = 0;
+  const n = density.length;
+  for (let i = 0; i < n; i++) {{
+    let total = 0;
+    for (const [name, se] of Object.entries(strainEnergy)) {{
+      if (se) total += se[i];
+    }}
+    if (total > mx) mx = total;
+  }}
+  _baselineMax = mx || 1;
+  return _baselineMax;
+}}
+
+function getBlendedMax() {{
+  // Use fixed baseline so slider changes produce visible color shifts
+  return getBaselineMax();
+}}
+
+// Dynamic force arrows for blend mode
+let blendArrows = [];
+function updateForceArrows() {{
+  // Remove old blend arrows
+  for (const a of blendArrows) loadsGroup.remove(a);
+  blendArrows = [];
+
+  if (activeColorMode !== 'blend') return;
+
+  const mb = meta.mast_bounds;
+  const ffb = meta.front_foot_bounds || meta.foot_bounds;
+  const bfb = meta.back_foot_bounds || meta.foot_bounds;
+
+  // Accumulate weighted forces from all load cases
+  let mastF = [0,0,0];
+  let mastT = [0,0,0];
+  let frontF = [0,0,0];
+  let backF = [0,0,0];
+
+  for (const lc of meta.load_cases) {{
+    const w = blendWeights[lc.name] || 0;
+    if (w === 0) continue;
+
+    if (lc.mast_force) {{
+      mastF[0] += w * lc.mast_force[0];
+      mastF[1] += w * lc.mast_force[1];
+      mastF[2] += w * lc.mast_force[2];
+    }}
+    if (lc.mast_torque) {{
+      mastT[0] += w * lc.mast_torque[0];
+      mastT[1] += w * lc.mast_torque[1];
+      mastT[2] += w * lc.mast_torque[2];
+    }}
+    if (lc.front_foot_force) {{
+      frontF[0] += w * lc.front_foot_force[0];
+      frontF[1] += w * lc.front_foot_force[1];
+      frontF[2] += w * lc.front_foot_force[2];
+    }}
+    if (lc.back_foot_force) {{
+      backF[0] += w * lc.back_foot_force[0];
+      backF[1] += w * lc.back_foot_force[1];
+      backF[2] += w * lc.back_foot_force[2];
+    }}
+  }}
+
+  // Draw mast force
+  const mMag = Math.sqrt(mastF[0]**2 + mastF[1]**2 + mastF[2]**2);
+  if (mMag > 1) {{
+    const mDir = new THREE.Vector3(mastF[0], mastF[1], mastF[2]).normalize();
+    const mLen = Math.min(0.3, mMag * 0.0002);
+    const mPos = new THREE.Vector3((mb[0]+mb[1])/2 - cx, (mb[2]+mb[3])/2 - cy, -cz);
+    const a = new THREE.ArrowHelper(mDir, mPos, mLen, 0x33ff88, mLen*0.25, mLen*0.12);
+    a.userData.isForceArrow = true;
+    loadsGroup.add(a);
+    blendArrows.push(a);
+  }}
+
+  // Draw mast torque (as circular arrow indicator)
+  const tMag = Math.sqrt(mastT[0]**2 + mastT[1]**2 + mastT[2]**2);
+  if (tMag > 1) {{
+    const tDir = new THREE.Vector3(mastT[0], mastT[1], mastT[2]).normalize();
+    const tLen = Math.min(0.2, tMag * 0.0005);
+    const tPos = new THREE.Vector3((mb[0]+mb[1])/2 - cx, (mb[2]+mb[3])/2 - cy, -cz + 0.02);
+    const a = new THREE.ArrowHelper(tDir, tPos, tLen, 0x88ffcc, tLen*0.3, tLen*0.15);
+    a.userData.isForceArrow = true;
+    loadsGroup.add(a);
+    blendArrows.push(a);
+  }}
+
+  // Draw front foot force
+  const fMag = Math.sqrt(frontF[0]**2 + frontF[1]**2 + frontF[2]**2);
+  if (fMag > 1) {{
+    const fDir = new THREE.Vector3(frontF[0], frontF[1], frontF[2]).normalize();
+    const fLen = Math.min(0.3, fMag * 0.0002);
+    const fPos = new THREE.Vector3((ffb[0]+ffb[1])/2 - cx, (ffb[2]+ffb[3])/2 - cy, lz - cz + 0.05);
+    const a = new THREE.ArrowHelper(fDir, fPos, fLen, 0xff3366, fLen*0.25, fLen*0.12);
+    a.userData.isForceArrow = true;
+    loadsGroup.add(a);
+    blendArrows.push(a);
+  }}
+
+  // Draw back foot force
+  const bMag = Math.sqrt(backF[0]**2 + backF[1]**2 + backF[2]**2);
+  if (bMag > 1) {{
+    const bDir = new THREE.Vector3(backF[0], backF[1], backF[2]).normalize();
+    const bLen = Math.min(0.3, bMag * 0.0002);
+    const bPos = new THREE.Vector3((bfb[0]+bfb[1])/2 - cx, (bfb[2]+bfb[3])/2 - cy, lz - cz + 0.05);
+    const a = new THREE.ArrowHelper(bDir, bPos, bLen, 0xff6633, bLen*0.25, bLen*0.12);
+    a.userData.isForceArrow = true;
+    loadsGroup.add(a);
+    blendArrows.push(a);
+  }}
+}}
+
+function updateBlendCompliance() {{
+  const div = document.getElementById('blend-compliance');
+  let html = '<div style="font-size:11px;opacity:0.6;margin-bottom:4px">Force magnitudes:</div>';
+  for (const lc of meta.load_cases) {{
+    const w = blendWeights[lc.name] || 0;
+    const color = lcColors[lc.name] || '#888';
+    const mf = lc.mast_force || [0,0,0];
+    const mag = Math.sqrt(mf[0]**2 + mf[1]**2 + mf[2]**2) * w;
+    html += `<div style="font-size:10px;display:flex;align-items:center;gap:4px">` +
+      `<span style="color:${{color}}">●</span> ${{lc.name.replace(/_/g,' ')}}: ` +
+      `<b>${{mag.toFixed(0)}}N</b> mast` +
+      `</div>`;
+  }}
+  div.innerHTML = html;
+}}
+updateBlendCompliance();
 
 document.getElementById('btn-xray').addEventListener('click', e => {{
   xrayMode = !xrayMode;

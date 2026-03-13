@@ -32,6 +32,84 @@ WATER_DENSITY = 1025.0  # kg/m³, seawater
 
 
 @dataclass
+class MaterialModel:
+    """Dual-material model for carbon shell + printed core.
+
+    The board has two distinct materials:
+    - Shell: carbon/epoxy outer skin (high E, high density)
+    - Core: 3D-printed interior structure (lower E, lower density)
+
+    Each element gets E0/Emin based on whether it's shell or core.
+    The SIMP interpolation is: E(x) = Emin[e] + x^p * (E0[e] - Emin[e])
+    """
+    # Shell material (carbon/epoxy)
+    shell_E: float = 70.0e9       # 70 GPa — carbon fiber composite
+    shell_Emin: float = 500.0e6   # void stiffness for shell elements
+    shell_rho: float = 1600.0     # kg/m³
+
+    # Core material (3D printed — e.g. PA12, PETG, or similar)
+    core_E: float = 5.0e9         # 5 GPa — printed thermoplastic
+    core_Emin: float = 50.0e6     # void stiffness for core elements
+    core_rho: float = 1100.0      # kg/m³
+
+    # Legacy single-material mode (for backward compat)
+    single_E: float = 20.0e9     # fiberglass composite
+    single_Emin: float = 50.0e6  # EPS foam
+    single_rho: float = 1600.0   # kg/m³
+
+    dual: bool = False            # False = legacy single-material
+
+    # Real-world shell mass override (kg). The optimizer's forced-solid shell
+    # elements are ~10mm thick (one mesh element), but the real carbon shell is
+    # ~2mm. Use this to give the mass budget a realistic shell mass instead of
+    # computing from the oversized mesh shell elements.
+    shell_mass_override_kg: Optional[float] = None
+
+    def estimate_shell_mass(self, board_length: float, board_width: float,
+                            board_thickness: float) -> float:
+        """Estimate real carbon shell mass from board dimensions.
+
+        Uses planform-corrected surface area * 1.5mm shell * shell_rho.
+        Planform factor 0.65 accounts for nose/tail taper (elliptical-ish).
+        """
+        if self.shell_mass_override_kg is not None:
+            return self.shell_mass_override_kg
+        planform_area = board_length * board_width * 0.65  # tapered planform
+        top_bottom = 2 * planform_area
+        rail_perim = 2 * (board_length * 0.85)  # rails run ~85% of length
+        rails = rail_perim * board_thickness
+        SA = top_bottom + rails
+        shell_t = 0.0015  # 1.5mm carbon layup (typical foil board)
+        return SA * shell_t * self.shell_rho
+
+    def get_element_properties(
+        self, shell_mask: np.ndarray, n_elements: int
+    ) -> tuple:
+        """Return per-element (E0, Emin, rho) arrays.
+
+        Args:
+            shell_mask: boolean mask, True = shell element
+            n_elements: total element count
+
+        Returns:
+            (E0_arr, Emin_arr, rho_arr) each shape (n_elements,)
+        """
+        if not self.dual:
+            return (
+                np.full(n_elements, self.single_E),
+                np.full(n_elements, self.single_Emin),
+                np.full(n_elements, self.single_rho),
+            )
+        E0 = np.full(n_elements, self.core_E)
+        Emin = np.full(n_elements, self.core_Emin)
+        rho = np.full(n_elements, self.core_rho)
+        E0[shell_mask] = self.shell_E
+        Emin[shell_mask] = self.shell_Emin
+        rho[shell_mask] = self.shell_rho
+        return E0, Emin, rho
+
+
+@dataclass
 class FoilSetup:
     """Hydrofoil geometry for deriving realistic load cases.
 

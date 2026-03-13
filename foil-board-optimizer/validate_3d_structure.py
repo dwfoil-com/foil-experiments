@@ -173,7 +173,7 @@ def _save_validation_plot(slice_se, phase1_se, density, mesh,
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        lx = mesh.lx
+        lx = mesh.nelx * mesh.dx
         x_slice = np.linspace(0, lx, nelx) * 1000
 
         fig, axes = plt.subplots(3, 1, figsize=(14, 10))
