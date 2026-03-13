@@ -2,49 +2,58 @@
 
 AI-powered experiments in surf hydrofoil design. Each project runs autonomously using [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — you describe what to explore, and the AI runs experiments while you're away from the keyboard.
 
-No programming experience required. You just need to sign up for a couple of services, clone this repo, and point the AI at a problem.
+No programming experience required. Browse the experiments and demos at **[dwfoil-com.github.io/foil-experiments](https://dwfoil-com.github.io/foil-experiments/)**.
 
 ---
 
-## Getting Started (for non-programmers)
+## Getting Started with Claude Cowork (easiest)
+
+The fastest way to get going — no terminal experience needed. [Claude Cowork](https://claude.com/product/cowork) is a desktop companion in Claude Desktop that can clone repos, install dependencies, and run experiments for you.
+
+1. **Get a Claude plan** — [Claude Pro](https://claude.com/pricing) is the best-value starting point. Move to Max 5× only if you need longer or more frequent sessions.
+2. **Open Claude Cowork** — Launch [Claude Desktop](https://claude.ai/download) and start a Cowork session.
+3. **Ask it to set up the repo** — Tell Cowork: *"Clone dwfoil-com/foil-experiments, install what the repo needs, and run the viewers I want to explore."*
+
+Cowork handles the git clone, Python environment, and dependency installs. Once you're oriented, switch into a tighter optimization loop: keep the agent focused on one narrow objective, review the results, refine the target, and continue iterating.
+
+> See the [Cowork getting-started guide](https://support.claude.com/en/articles/13345190-get-started-with-cowork) for more detail.
+
+---
+
+## Getting Started with Claude Code (terminal)
+
+If you're comfortable in a terminal, you can drive experiments directly with Claude Code.
 
 ### 1. Install Claude Code
 
-Claude Code is a command-line AI assistant that can read files, write code, and run experiments autonomously.
-
 ```bash
-# Install Claude Code (requires Node.js — install from https://nodejs.org first)
+# Requires Node.js — install from https://nodejs.org first
 npm install -g @anthropic-ai/claude-code
 ```
 
 Sign up at [console.anthropic.com](https://console.anthropic.com) and add an API key when prompted on first run.
 
-> Alternatively, if you have a Claude Max subscription, Claude Code is included — just run `claude` and log in.
+> If you have a Claude Max subscription, Claude Code is included — just run `claude` and log in.
 
-### 2. Clone this repo
+### 2. Clone and set up
 
 ```bash
 git clone https://github.com/dwfoil-com/foil-experiments.git
 cd foil-experiments
-```
 
-### 3. Install Python dependencies
-
-Each project has its own `requirements.txt`. Set up the one you want to work on:
-
-```bash
+# Set up a project (each has its own requirements.txt)
 cd foil-board-optimizer  # or foil-rl-pump/python-rl
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Launch Claude Code
+### 3. Launch Claude Code
 
 ```bash
 claude
 ```
 
-That's it. You're in. Claude reads the project's `CLAUDE.md` and `program.md` files to understand what to do.
+That's it. Claude reads the project's `CLAUDE.md` and `program.md` files to understand what to do.
 
 ---
 
@@ -84,14 +93,6 @@ Edit `program.md` in plain English to change direction:
 - "Only optimize for riding and pumping, ignore carving"
 
 Claude reads this file at the start of each loop and adjusts its approach.
-
-### Use Claude Code Cowork (desktop)
-
-For a more visual experience, use [Claude Code Cowork](https://docs.anthropic.com/en/docs/claude-code/cowork) — the desktop companion that lets you see what Claude is doing in real-time, review changes, and steer experiments interactively.
-
-1. Install Claude Code desktop from [claude.ai/download](https://claude.ai/download)
-2. Open the project folder
-3. Start a Cowork session — Claude gets the same terminal access but you can watch and guide it
 
 ---
 
