@@ -1,0 +1,4 @@
+# process_video.py output byproducts — not committed, regenerate with regen.sh
+samples/output/*_skeleton.mp4
+samples/output/*_body.npy
+samples/output/*_features.json
