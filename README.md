@@ -166,6 +166,18 @@ Long-form interactive article and simulation exploring how surf hydrofoils work 
 
 ---
 
+## Site (dwfoil-com.github.io/foil-experiments)
+
+`site/apps/` is not committed — it's a copy of each project's own HTML/JS,
+generated on demand by `site/refresh-embeds.sh`. The GitHub Pages workflow
+(`.github/workflows/foil-insert-load-comparison-pages.yml`) runs that script
+automatically before every deploy. To preview the site locally:
+
+```bash
+bash site/refresh-embeds.sh
+open site/index.html
+```
+
 ## Contributing
 
 Contributions are welcome — open an issue or pull request. The easiest way to get started is to use [Claude Cowork](https://claude.com/product/cowork) to clone the repo and explore. Each project has its own `CLAUDE.md` with context for the AI to work from.
