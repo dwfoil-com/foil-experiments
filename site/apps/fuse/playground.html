@@ -190,6 +190,14 @@
   .fade-in { animation: fi .45s ease both; }
   @keyframes fi { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+  .saved-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }
+  .saved-row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-row button {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 7px; font: inherit; font-size: 10.5px; padding: 2px 7px; cursor: pointer;
+  }
+  .saved-row button.on { background: var(--sea); border-color: var(--sea); color: #fff; }
+
   .prog { display: none; margin-top: 8px; position: relative; height: 16px; }
   .prog i {
     display: block; height: 3px; width: 0; background: var(--sea);
@@ -284,6 +292,7 @@
           </div>
         </div>
         <div class="ride" id="fuseRows"></div>
+        <button class="btn" id="addCompare" style="width:100%">Save to compare</button>
 
         <details class="more">
           <summary>Show more detail</summary>
@@ -299,11 +308,16 @@
       </div>
 
       <div class="card stack" data-for="compare" hidden>
-        <h2>Compare</h2>
+        <h2>Saved designs</h2>
+        <div id="savedList"></div>
         <div class="row">
-          <label for="cmpB">Compare with</label>
+          <label for="cmpB">Add a reference</label>
           <span class="inp"><select id="cmpB"></select></span>
         </div>
+        <button class="btn ghost" id="addRef">Add it</button>
+        <button class="btn ghost" id="matchBase" style="width:100%">Re-size working fuse to the baseline</button>
+        <p class="hint">Gives the working fuse the baseline's vertical stiffness and material, so
+          the drag difference is down to outline alone.</p>
       </div>
 
       <div class="card stack" data-for="simulate" hidden>
@@ -1134,8 +1148,8 @@ const S = {
   alpha: 8, V: 4.5, slicePos: 0.5,
   vmin: 4.0, vmax: 6.5,
   designV: 4.0, designAngle: 8,
-  cmpB: "rod-round",
-  angleOverride: null, cfdSpeed: 0.6,
+  cmpB: "rod-round", saved: [], baseline: 0,
+  angleOverride: null, cfdSpeed: 1,
   az: -0.62, el: 0.30, zoom: 1,
   hMax: 55,
   pump: { mass: 80, S: 0.09, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
@@ -1197,6 +1211,9 @@ function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16) {
   if (!(I0 > 1e-9) || !(I2 > 1e-9)) return [];
   const hMin = 2 * Math.sqrt((iyyTarget * I0) / (areaTarget * I2));
   if (!isFinite(hMin) || hMin <= 4) return [];
+  // If even the shortest feasible height breaks the joint limit there is no legal
+  // answer. Return it anyway so the search is not empty, but say so.
+  const over = hMin > hMax;
   const hi = Math.max(hMin, Math.min(hMax, hMin * 2.2));
   const out = [];
   for (let k = 0; k < n; k++) {
@@ -1204,7 +1221,7 @@ function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16) {
     const w = 8 * iyyTarget / (h * h * h * I2);
     if (!(w > 1.5) || w > h * 3) continue;
     if (w * h * I0 / 2 > areaTarget * 1.0001) continue;
-    out.push({ h, w, atLimit: Math.abs(h - hMax) < 1e-6 });
+    out.push({ h, w, atLimit: Math.abs(h - hMax) < 1e-6, over });
   }
   return out;
 }
@@ -1251,8 +1268,8 @@ function pumpTrace(V, p, n = 121) {
 
 // Keeps the chosen outline. Swapping families answered a question nobody asked:
 // what you want to know is whether your own shape is the right size.
-function optimise(alphaDeg, V) {
-  const base = sectionProps(S.fuse);
+function optimise(alphaDeg, V, target) {
+  const base = target || sectionProps(S.fuse);
   const sd = S.fuse.section;
   const results = [];
   for (const size of feasibleHeights(sd, base.area, base.Iyy, S.hMax, 26)) {
@@ -1260,7 +1277,7 @@ function optimise(alphaDeg, V) {
       { h: +size.h.toFixed(2), w: +size.w.toFixed(2) });
     const D = totalDrag(cand, alphaDeg, V, 11).D;
     if (!isFinite(D)) continue;
-    results.push({ fuse: cand, D, capped: size.atLimit, props: sectionProps(cand) });
+    results.push({ fuse: cand, D, capped: size.atLimit, over: size.over, props: sectionProps(cand) });
   }
   results.sort((a, b) => a.D - b.D);
   if (results[0]) results[0].D = totalDrag(results[0].fuse, alphaDeg, V, 25).D;
@@ -1677,10 +1694,10 @@ function drawDragCurve() {
   const angles = [];
   for (let a = 0; a <= 24; a += 1.5) angles.push(a);
 
-  const A = S.fuse, B = fuseById(S.cmpB);
+  const A = S.fuse, B = S.saved.length ? S.saved[0].fuse : null;
   const series = [];
   for (const lib of LIBRARY) {
-    if (lib.id === S.fuse.id || lib.id === S.cmpB) continue;
+    if (lib.id === S.fuse.id) continue;
     series.push({ colour: "rgba(21,34,41,0.16)", width: 1, ys: angles.map(a => totalDrag(lib, a, S.V, 13).D) });
   }
   if (B) series.push({ colour: "#bd6b3f", width: 2.2, dash: [5, 4],
@@ -1727,8 +1744,8 @@ function drawDragCurve() {
 
   document.getElementById("dragNote").textContent = `at ${mph(S.V).toFixed(1)} mph`;
   legend("dragLegend", [
-    { colour: "#2d7277", label: "yours · " + A.name },
-    ...(B ? [{ colour: "#bd6b3f", dash: true, label: B.name }] : []),
+    { colour: "#2d7277", label: "working" },
+    ...(B ? [{ colour: "#bd6b3f", dash: true, label: S.saved[0].name }] : []),
     { colour: "rgba(21,34,41,0.28)", label: "the rest of the library" },
     { colour: "rgba(45,114,119,0.35)", fill: "rgba(45,114,119,0.18)", label: "where the pump stroke runs" }
   ]);
@@ -2143,14 +2160,15 @@ function bakeTick() {
     el.querySelector("span").textContent =
       Bake.state === "record" ? "recording a loop" : "settling the flow";
   }
-  // Drawing the field while it settles made the animation look like it raced and
-  // then crawled. Hold a still frame and let the progress bar do the talking.
-  if (Bake.frames.length === 0) blitCFD(null);
+  // Show the flow while it settles, throttled: a blank canvas for several seconds
+  // reads as broken, and rebuilding the frame every tick would eat the bake budget.
+  const nowMs = performance.now();
+  if (Bake.state !== "record" && nowMs - bakePaint > 120) { bakePaint = nowMs; blitCFD(lbmFrame()); }
 }
 
 let cfdRAF = null, cfdOn = true, cfdInView = false, cfdPageVisible = !document.hidden;
 let cfdLastDraw = 0;
-const CFD_FRAME_BASE = 70;        // slow enough to watch a vortex form and roll off
+const CFD_FRAME_BASE = 33;        // 30 fps; the speed control slows it from here
 function cfdLoop() {
   cfdRAF = requestAnimationFrame(cfdLoop);
   if (!cfdInView || !cfdPageVisible || !LBM.ready) return;
@@ -2169,7 +2187,7 @@ function cfdLoop() {
 // A bake is expensive and the flow only depends on the section, so re-run it when
 // the section actually changes. Re-baking on every render restarted the animation
 // constantly, which read as the whole thing flashing.
-let cfdRebuild = null, cfdSig = null;
+let cfdRebuild = null, cfdSig = null, bakePaint = 0;
 function sectionSignature() {
   const f = S.fuse;
   return JSON.stringify([f.L, f.h, f.w, f.section, S.alpha, S.slicePos]);
@@ -2332,83 +2350,140 @@ function updateDesign() {
 }
 
 /* =====================================================================
-   Compare: A against B
+   Compare: whatever you have saved, plus the fuse you are holding
    ===================================================================== */
+const CMP_COLOURS = ["#bd6b3f", "#4a6f9c", "#8a7a3f", "#7a4a6f", "#3f8a5c", "#9c4a4a"];
+
+function outlineName(f) {
+  const sd = f.section;
+  if (sd.type === "superellipse") return sd.n <= 2.05 ? "Ellipse" : `Superellipse ${sd.n}`;
+  if (sd.type === "rect") return `Rounded rect ${(+sd.fillet).toFixed(1)}mm`;
+  return `Aerofoil nose ${sd.flip ? "up" : "down"}`;
+}
+function autoName(f) {
+  return `${outlineName(f)} ${(+f.h).toFixed(0)}×${(+f.w).toFixed(0)}`;
+}
+function addToCompare(fuse, name) {
+  const f = cloneFuse(fuse);
+  S.saved.push({ fuse: f, name: name || autoName(f), colour: CMP_COLOURS[S.saved.length % CMP_COLOURS.length] });
+  renderSavedList();
+}
+function cmpSet() {
+  return [{ fuse: S.fuse, name: "Working: " + autoName(S.fuse), colour: "#2d7277", live: true }]
+    .concat(S.saved);
+}
+
+function renderSavedList() {
+  const el = document.getElementById("savedList");
+  if (!el) return;
+  if (!S.saved.length) {
+    el.innerHTML = `<p class="hint">Nothing saved. Shape a fuse, press <b>Save to compare</b>,
+      change it, and save again to see the two side by side.</p>`;
+    return;
+  }
+  el.innerHTML = S.saved.map((sv, i) => `<div class="saved-row">
+      <span class="swatch" style="background:${sv.colour}"></span>
+      <span class="nm">${sv.name}</span>
+      <button type="button" data-base="${i + 1}" class="${S.baseline === i + 1 ? "on" : ""}" title="Use as baseline">base</button>
+      <button type="button" data-del="${i}" title="Remove">×</button>
+    </div>`).join("");
+  for (const b of el.querySelectorAll("[data-del]"))
+    b.addEventListener("click", () => {
+      S.saved.splice(+b.dataset.del, 1);
+      if (S.baseline > S.saved.length) S.baseline = 0;
+      renderSavedList(); render();
+    });
+  for (const b of el.querySelectorAll("[data-base]"))
+    b.addEventListener("click", () => { S.baseline = +b.dataset.base; renderSavedList(); render(); });
+}
+
 function drawCompareAB() {
   const cv = document.getElementById("ccmp");
   const { ctx, w, h } = fit(cv);
-  const items = [
-    { f: S.fuse, colour: "#2d7277", tag: "Yours", dash: [] },
-    { f: fuseById(S.cmpB), colour: "#bd6b3f", tag: "Reference", dash: [5, 4] }
-  ].filter(x => x.f && x.f !== S.fuse || x.tag === "Yours");
-  const secs = items.map(it => ({ ...it, s: sectionFor(it.f, S.alpha, 0.5) })).filter(x => x.s);
-  if (!secs.length) { text(ctx, "nothing to compare", w / 2, h / 2, { align: "center" }); return; }
+  const set = cmpSet().map(x => ({ ...x, s: sectionFor(x.fuse, S.alpha, 0.5) })).filter(x => x.s);
+  if (!set.length) { text(ctx, "nothing to compare", w / 2, h / 2, { align: "center" }); return; }
 
   const pad = 38;
   let maxC = 0, maxT = 0;
-  for (const x of secs) { maxC = Math.max(maxC, x.s.chord); maxT = Math.max(maxT, x.s.tmax); }
+  for (const x of set) { maxC = Math.max(maxC, x.s.chord); maxT = Math.max(maxT, x.s.tmax); }
   const scale = Math.min((w - 2 * pad) / maxC, (h - 2 * pad) / (maxT * 2.5));
 
   ctx.strokeStyle = "rgba(21,34,41,0.14)"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad * 0.5, h / 2); ctx.stroke();
 
-  for (const x of secs) {
-    ctx.save(); if (x.dash.length) ctx.setLineDash(x.dash);
+  for (const x of set) {
+    ctx.save();
+    if (!x.live) ctx.setLineDash([5, 4]);
     ctx.beginPath();
     for (let k = 0; k < x.s.N; k++) ctx.lineTo(pad + (x.s.u[k] - x.s.uLE) * scale, h / 2 - x.s.t[k] * scale);
     for (let k = x.s.N - 1; k >= 0; k--) ctx.lineTo(pad + (x.s.u[k] - x.s.uLE) * scale, h / 2 + x.s.t[k] * scale);
     ctx.closePath();
-    if (x.tag === "Yours") { ctx.fillStyle = "rgba(45,114,119,0.16)"; ctx.fill(); }
-    ctx.strokeStyle = x.colour; ctx.lineWidth = 2; ctx.stroke();
+    if (x.live) { ctx.fillStyle = "rgba(45,114,119,0.16)"; ctx.fill(); }
+    ctx.strokeStyle = x.colour; ctx.lineWidth = x.live ? 2.2 : 1.6; ctx.stroke();
     ctx.restore();
   }
-  // label on the drawing, because a legend underneath makes you look twice
-  for (const x of secs) {
+  // label each outline where it is thickest, so nothing needs a legend
+  set.forEach((x, idx) => {
     let iTop = 0;
     for (let k = 0; k < x.s.N; k++) if (x.s.t[k] > x.s.t[iTop]) iTop = k;
     const lx = pad + (x.s.u[iTop] - x.s.uLE) * scale;
-    const ly = h / 2 - x.s.t[iTop] * scale - 8;
-    const label = x.tag === "Yours" ? "yours" : x.f.name;
+    const above = idx % 2 === 0;
+    const ly = above ? h / 2 - x.s.t[iTop] * scale - 7 : h / 2 + x.s.t[iTop] * scale + 15;
+    const label = x.live ? "working" : x.name;
     ctx.save();
-    ctx.font = "600 12px 'Avenir Next', sans-serif";
+    ctx.font = "600 11.5px 'Avenir Next', sans-serif";
     ctx.textAlign = "center";
     const tw = ctx.measureText(label).width;
-    ctx.fillStyle = "rgba(255,250,243,.88)";
-    ctx.fillRect(lx - tw / 2 - 5, ly - 13, tw + 10, 17);
+    ctx.fillStyle = "rgba(255,250,243,.9)";
+    ctx.fillRect(lx - tw / 2 - 5, ly - 12, tw + 10, 16);
     ctx.fillStyle = x.colour;
     ctx.fillText(label, lx, ly);
     ctx.restore();
-  }
+  });
   text(ctx, "flow →", pad, h - 10, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
   document.getElementById("cmpAngle").textContent =
-    `both cut at ${S.alpha.toFixed(1)}°, ${mph(S.V).toFixed(1)} mph`;
+    `all cut at ${S.alpha.toFixed(1)}°, ${mph(S.V).toFixed(1)} mph`;
 }
 
 function updateABTable() {
   const tb = document.querySelector("#cmpTable tbody");
-  const rows = [
-    { tag: "Yours", f: S.fuse, colour: "#2d7277" },
-    { tag: "Reference", f: fuseById(S.cmpB), colour: "#bd6b3f" }
-  ].filter(r => r.f);
+  const set = cmpSet();
+  const rows = set.map(x => {
+    const sec = sectionFor(x.fuse, S.alpha, 0.5);
+    if (!sec) return null;
+    return { ...x, sec, D: totalDrag(x.fuse, S.alpha, S.V, 21).D, pr: sectionProps(x.fuse) };
+  }).filter(Boolean);
+  if (!rows.length) { tb.innerHTML = ""; return; }
+  const base = rows[Math.min(S.baseline, rows.length - 1)];
+
   tb.innerHTML = rows.map(r => {
-    const sec = sectionFor(r.f, S.alpha, 0.5);
-    if (!sec) return "";
-    const dr = sectionDrag(sec, S.V);
-    const tot = totalDrag(r.f, S.alpha, S.V, 21);
-    const pr = sectionProps(r.f);
-    return `<tr>
-      <td><span class="swatch" style="background:${r.colour}"></span>${r.tag} · ${r.f.name}</td>
-      <td>${r.f.h} × ${r.f.w}</td>
-      <td>${sec.chord.toFixed(0)} mm</td>
-      <td>${(100 * sec.tmax / sec.chord).toFixed(1)}%</td>
-      <td>${sec.tLE > 0.3 ? sec.tLE.toFixed(1) + " mm" : "–"}</td>
-      <td>${sec.tTE > 0.3 ? sec.tTE.toFixed(1) + " mm" : "–"}</td>
-      <td>${dr.Cd.toFixed(4)}</td>
-      <td>${tot.D.toFixed(2)} N</td>
-      <td>${(pr.Iyy / 1000).toFixed(1)}k mm⁴</td>
-      <td>${pr.area.toFixed(0)} mm²</td>
+    const d = 100 * (r.D / Math.max(base.D, 1e-9) - 1);
+    const blunt = Math.max(r.sec.tLE, r.sec.tTE);
+    return `<tr${r === base ? ' class="me"' : ""}>
+      <td><span class="swatch" style="background:${r.colour}"></span>${r.name}${r === base ? " (baseline)" : ""}</td>
+      <td>${(+r.fuse.h).toFixed(1)} × ${(+r.fuse.w).toFixed(1)}</td>
+      <td>${(100 * r.sec.tmax / r.sec.chord).toFixed(1)}%</td>
+      <td>${blunt > 0.3 ? blunt.toFixed(1) + " mm" : "–"}</td>
+      <td>${r.D.toFixed(2)} N</td>
+      <td>${r === base ? "–" : (d >= 0 ? "+" : "") + d.toFixed(0) + "%"}</td>
+      <td>${(r.pr.Iyy / 1000).toFixed(1)}k</td>
+      <td>${r.pr.area.toFixed(0)} mm²</td>
     </tr>`;
   }).join("");
+
+  const el = document.getElementById("cmpVerdict");
+  if (rows.length < 2) { el.className = "flag ok"; el.textContent =
+    "Save a second design to see the difference."; return; }
+  const best = rows.reduce((a, b) => a.D < b.D ? a : b);
+  const worst = rows.reduce((a, b) => a.D > b.D ? a : b);
+  const spread = 100 * (worst.D / Math.max(best.D, 1e-9) - 1);
+  const sameStiff = rows.every(r => Math.abs(r.pr.Iyy / base.pr.Iyy - 1) < 0.05);
+  el.className = "flag ok";
+  el.textContent = `Lowest drag is ${best.name} at ${best.D.toFixed(2)} N. The spread across
+    ${rows.length} designs is ${spread.toFixed(0)}%.` +
+    (rows.some(r => r.fuse.h > S.hMax) ? ` One of them is taller than the ${S.hMax} mm joint limit.` : "") +
+    (sameStiff ? " They all carry the same vertical stiffness, so that is a like-for-like difference."
+               : " Stiffness varies between them, so this is not like-for-like; check the stiffness column.");
 }
 
 /* =====================================================================
@@ -2470,6 +2545,9 @@ function renderOptimum(before) {
        ${gain >= 0 ? `a ${gain.toFixed(0)}% saving` : `${(-gain).toFixed(0)}% worse`}.
        Same outline, same vertical stiffness, same material.`}
     ${o.capped ? `<br>Height is pegged at the ${S.hMax} mm joint limit.` : ""}
+    ${o.over ? `<br><b>Over the limit.</b> Carrying this stiffness in this outline needs
+      ${o.fuse.h.toFixed(1)} mm of height, past the ${S.hMax} mm the joints will take. Treat it as
+      a target to design towards, not a part.` : ""}
   </div>`;
 }
 
@@ -2566,7 +2644,7 @@ const FUSE_ROWS = [
     get: () => S.fuse.w, set: v => S.fuse.w = v }
 ];
 const SIM_ROWS = [
-  { id: "cfdSpeed", label: "Playback speed", unit: "×", min: 0.25, max: 2, step: 0.05,
+  { id: "cfdSpeed", label: "Playback speed", unit: "×", min: 0.5, max: 2, step: 0.1,
     get: () => S.cfdSpeed, set: v => S.cfdSpeed = v }
 ];
 const SLICE_ROW = [
@@ -2651,7 +2729,26 @@ function init() {
   const cmpSel = document.getElementById("cmpB");
   cmpSel.innerHTML = LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
   cmpSel.value = S.cmpB;
-  cmpSel.addEventListener("change", () => { S.cmpB = cmpSel.value; render(); });
+  cmpSel.addEventListener("change", () => { S.cmpB = cmpSel.value; });
+  document.getElementById("addRef").addEventListener("click", () => {
+    const f = LIBRARY.find(x => x.id === cmpSel.value);
+    if (f) { addToCompare(f, f.name); render(); }
+  });
+  document.getElementById("matchBase").addEventListener("click", () => {
+    const set = cmpSet();
+    const base = set[Math.min(S.baseline, set.length - 1)];
+    if (!base || base.live) return;
+    const best = optimise(S.alpha, S.V, sectionProps(base.fuse)).best;
+    if (best) { S.fuse.h = best.fuse.h; S.fuse.w = best.fuse.w; S.cache.clear(); syncControls(); render(); }
+  });
+  document.getElementById("addCompare").addEventListener("click", () => {
+    addToCompare(S.fuse);
+    const b = document.getElementById("addCompare");
+    b.textContent = "Saved";
+    setTimeout(() => b.textContent = "Save to compare", 900);
+    render();
+  });
+  renderSavedList();
 
   buildRows("rideBasic", RIDE_BASIC);
   buildRows("rideAdvanced", RIDE_ADVANCED);
