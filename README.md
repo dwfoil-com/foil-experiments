@@ -159,6 +159,13 @@ Reinforcement learning agent that learns to pump foil — maintaining flight thr
 
 Extract body pose from pump foil videos using MediaPipe. Produces skeleton overlays, dot traces, and biomechanical features from any foil video.
 
+### [foil-fuse-sections](foil-fuse-sections/) — Fuselage cross-sections at pump angle
+**Status:** poc
+
+A fuse only sits parallel to the flow in a drawing. In flight it is pitched nose-up, and at that angle the streamwise cut through it is a long thin aerofoil with roughly six times the chord of the fuse height. Its shape turns out to be the fuse's own cross-section outline stretched along the chord, which makes the corner radii on a fuse an aerofoil design decision rather than a cosmetic one.
+
+Browser playground for slicing fuse shapes at any angle, with a source panel method and integral boundary layer on the resulting section. Open `playground.html`, no build step. Idea credited to [CRISP Foils](https://crispfoils.com); the geometry here is an independent reconstruction.
+
 ### [hydrofoil](hydrofoil/) — Interactive surf hydrofoil explainer
 **Status:** in-progress
 
