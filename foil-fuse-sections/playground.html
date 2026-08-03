@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuse cross-sections at pump angle</title>
+<style>
+  :root {
+    --bg: #f3ecdf;
+    --paper: rgba(255, 250, 243, 0.92);
+    --card: rgba(255, 255, 255, 0.7);
+    --ink: #152229;
+    --muted: #5f6d73;
+    --line: rgba(21, 34, 41, 0.12);
+    --sea: #2d7277;
+    --sand: #ecd8b0;
+    --clay: #bd6b3f;
+    --shadow: 0 20px 50px rgba(21, 34, 41, 0.1);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(45,114,119,.14), transparent 26%),
+      radial-gradient(circle at top right, rgba(236,216,176,.24), transparent 24%),
+      linear-gradient(180deg, #f8f2e8 0%, #eee3d2 100%);
+    min-height: 100%;
+  }
+  body { padding: 20px 16px 60px; }
+  .page { width: min(1320px, 100%); margin: 0 auto; }
+  h1, h2, h3 { margin: 0; font-family: "Iowan Old Style", "Palatino Linotype", serif; font-weight: 600; }
+  h1 { font-size: 30px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; }
+  h3 { font-size: 14px; }
+  p { margin: 0; line-height: 1.55; }
+  .eyebrow { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--sea); }
+  .hero, .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+  }
+  .hero { padding: 22px 26px; margin-bottom: 16px; display: grid; gap: 10px; }
+  .hero p { max-width: 74ch; color: var(--muted); font-size: 14px; }
+  .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 950px) { .layout { grid-template-columns: 1fr; } }
+  .card { padding: 18px 20px; }
+  .stack { display: grid; gap: 16px; }
+  .controls { position: sticky; top: 16px; display: grid; gap: 14px; }
+  @media (max-width: 950px) { .controls { position: static; } }
+
+  label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+  .row { display: grid; gap: 5px; }
+  .row .val { float: right; font-weight: 500; color: var(--sea); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--sea); }
+  select, input[type=text] {
+    width: 100%; font: inherit; font-size: 13px; padding: 7px 9px;
+    border-radius: 10px; border: 1px solid var(--line); background: #fff; color: inherit;
+  }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .seg button {
+    font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+  }
+  .seg button[aria-pressed="true"] { background: var(--sea); border-color: var(--sea); color: #fff; }
+  .hint { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+  .divider { height: 1px; background: var(--line); margin: 4px 0; }
+
+  canvas { display: block; width: 100%; border-radius: 14px; background: rgba(255,255,255,.55); }
+  .canvas-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .canvas-head .note { font-size: 11.5px; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  @media (max-width: 780px) { .grid2 { grid-template-columns: 1fr; } }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  tbody tr.me td { background: rgba(45,114,119,.09); font-weight: 600; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+  .metric { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; }
+  .metric .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .metric .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .metric .u { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+  .flag { font-size: 12px; padding: 8px 11px; border-radius: 10px; margin-top: 10px; line-height: 1.45; }
+  .flag.ok { background: rgba(45,114,119,.11); color: #1d5559; }
+  .flag.warn { background: rgba(189,107,63,.14); color: #8c4823; }
+
+  details { font-size: 13px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+  details .body { margin-top: 10px; color: var(--muted); line-height: 1.6; display: grid; gap: 10px; }
+  details .body code { background: rgba(21,34,41,.06); padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+  textarea {
+    width: 100%; min-height: 120px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11.5px; padding: 10px; border-radius: 12px; border: 1px solid var(--line);
+    background: #fff; color: var(--ink); resize: vertical;
+  }
+  .btn {
+    font: inherit; font-size: 12.5px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--sea); background: var(--sea); color: #fff;
+  }
+  .btn.ghost { background: #fff; color: var(--sea); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <span class="eyebrow">Foil experiments &middot; fuselage geometry</span>
+    <h1>What the water actually sees when a fuse is at pump angle</h1>
+    <p>
+      A fuselage is normally drawn as a bar. But in flight it sits at an angle to the oncoming water, and at
+      that angle the streamwise cut through it is not the bar's cross-section. It is a long, thin aerofoil whose
+      shape is set entirely by the outline of the fuse's cross-section. Slice a fuse at 10&deg; and you get a
+      section with roughly six times the chord of the fuse height. Whether that section is a clean aerofoil or a
+      blunt-ended slab is decided by geometry you can see here.
+    </p>
+    <p>
+      Slide the pump angle and watch the section change. Then compare shapes at the same angle.
+    </p>
+  </div>
+
+  <div class="layout">
+
+    <!-- ------------------------------------------------------------------ CONTROLS -->
+    <div class="controls">
+      <div class="card stack" style="gap:12px">
+        <div class="row">
+          <label for="preset">Fuse</label>
+          <select id="preset"></select>
+          <div class="hint" id="presetNote"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <label for="alpha">Pump angle <span class="val" id="alphaV"></span></label>
+          <input type="range" id="alpha" min="0" max="24" step="0.5" value="10">
+          <div class="hint">Angle between the fuse axis and the oncoming water. Steady flight is a few degrees;
+            the pump stroke swings it well beyond that.</div>
+        </div>
+
+        <div class="row">
+          <label for="speed">Speed <span class="val" id="speedV"></span></label>
+          <input type="range" id="speed" min="2" max="9" step="0.1" value="4.5">
+        </div>
+
+        <div class="row">
+          <label for="slicePos">Slice position <span class="val" id="slicePosV"></span></label>
+          <input type="range" id="slicePos" min="0" max="1" step="0.005" value="0.5">
+          <div class="hint">Which of the parallel streamwise cuts to inspect. 0 is nearest the nose, 1 nearest the tail.</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <label for="L">Length <span class="val" id="LV"></span></label>
+          <input type="range" id="L" min="300" max="900" step="5">
+        </div>
+        <div class="row">
+          <label for="h">Height <span class="val" id="hV"></span></label>
+          <input type="range" id="h" min="10" max="60" step="0.5">
+        </div>
+        <div class="row">
+          <label for="w">Width <span class="val" id="wV"></span></label>
+          <input type="range" id="w" min="6" max="60" step="0.5">
+        </div>
+
+        <div class="row">
+          <label>Cross-section outline</label>
+          <div class="seg" id="secType">
+            <button data-t="superellipse">superellipse</button>
+            <button data-t="rect">rounded rect</button>
+            <button data-t="naca">aerofoil</button>
+          </div>
+        </div>
+        <div class="row" id="rowN">
+          <label for="nExp">Superellipse exponent <span class="val" id="nExpV"></span></label>
+          <input type="range" id="nExp" min="1.6" max="10" step="0.1" value="2">
+          <div class="hint">2 is an ellipse. 4 is a squircle. 10 is effectively a rectangle.</div>
+        </div>
+        <div class="row" id="rowFillet">
+          <label for="fillet">Corner radius <span class="val" id="filletV"></span></label>
+          <input type="range" id="fillet" min="0.2" max="12" step="0.1" value="2">
+        </div>
+        <div class="row" id="rowFlip">
+          <label>Aerofoil nose</label>
+          <div class="seg" id="flipSeg">
+            <button data-f="0">bottom (up-stroke)</button>
+            <button data-f="1">top (down-stroke)</button>
+          </div>
+          <div class="hint">With the fuse nose-up, the streamwise cut enters through the bottom of the fuse.
+            An aerofoil section only has its rounded nose facing the flow if it points down.</div>
+        </div>
+      </div>
+
+      <div class="card stack" style="gap:10px">
+        <h3>Compare against</h3>
+        <div class="seg" id="compareSeg"></div>
+        <div class="hint">Shown in the section overlay and the drag curve.</div>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------------------ CONTENT -->
+    <div class="stack">
+
+      <div class="grid2">
+        <div class="card">
+          <div class="canvas-head">
+            <h2>The fuse and the cut</h2>
+            <span class="note">drag to rotate</span>
+          </div>
+          <canvas id="c3d" height="340"></canvas>
+        </div>
+        <div class="card">
+          <div class="canvas-head">
+            <h2>Side view</h2>
+            <span class="note">flow arrives at the pump angle</span>
+          </div>
+          <canvas id="cside" height="340"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="canvas-head">
+          <h2>The section the water flows over</h2>
+          <span class="note">drawn to scale, chord shown horizontally</span>
+        </div>
+        <canvas id="csec" height="230"></canvas>
+        <div class="metrics" style="margin-top:14px" id="secMetrics"></div>
+        <div id="secFlag"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="canvas-head">
+            <h2>Pressure and boundary layer</h2>
+            <span class="note">source panel + integral BL</span>
+          </div>
+          <canvas id="ccp" height="260"></canvas>
+          <div id="cfdFlag"></div>
+        </div>
+        <div class="card">
+          <div class="canvas-head">
+            <h2>Fuse drag vs pump angle</h2>
+            <span class="note" id="dragNote"></span>
+          </div>
+          <canvas id="cdrag" height="260"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="canvas-head">
+          <h2>All shapes at <span id="cmpAngle"></span></h2>
+          <span class="note">same angle, same scale, sections overlaid on a common chord axis</span>
+        </div>
+        <canvas id="ccmp" height="200"></canvas>
+        <div style="overflow-x:auto; margin-top:14px">
+          <table id="cmpTable">
+            <thead><tr>
+              <th>Fuse</th><th>h &times; w</th><th>Chord</th><th>t/c</th>
+              <th>Blunt LE</th><th>Blunt TE</th><th>C<sub>d</sub></th><th>Drag</th><th>Power</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card stack" style="gap:14px">
+        <details>
+          <summary>How the slice is computed</summary>
+          <div class="body">
+            <p>
+              Put the fuse axis along <code>x</code> with the nose at <code>x=0</code>, lateral across the fuse
+              as <code>y</code>, and vertical as <code>z</code>. With the fuse pitched nose-up by
+              <code>&alpha;</code>, the oncoming water runs along
+              <code>V = V(cos&alpha;, 0, sin&alpha;)</code>.
+            </p>
+            <p>
+              A streamwise plane is any plane containing that vector. For a fuse that is tall and narrow the flow
+              is essentially two-dimensional in the planes that cut across the thin direction, the same way flow
+              over a mast is two-dimensional in horizontal planes. Those planes are
+              <code>&minus;x&nbsp;sin&alpha; + z&nbsp;cos&alpha; = d</code>. Using chordwise coordinate
+              <code>u = x&nbsp;cos&alpha; + z&nbsp;sin&alpha;</code> and lateral <code>v = y</code>, the
+              half-thickness of the section is
+            </p>
+            <p><code>t(u)/2 = (w(x)/2) &middot; &Phi;(&zeta;)</code>, with
+              <code>&zeta; = 2z/h(x)</code>, <code>x = u&nbsp;cos&alpha; &minus; d&nbsp;sin&alpha;</code>,
+              <code>z = u&nbsp;sin&alpha; + d&nbsp;cos&alpha;</code>.
+            </p>
+            <p>
+              <code>&Phi;</code> is the fuse's own cross-section outline: half-width as a fraction of the maximum,
+              plotted against normalised height. That is the whole point. Because <code>&zeta;</code> runs linearly
+              from &minus;1 to +1 along the cut, <b>the streamwise aerofoil's thickness distribution is the fuse
+              cross-section outline, stretched out along the chord.</b> A square-cornered fuse gives a rectangle.
+              An elliptical fuse gives an ellipse. If you want the flow to see a proper aerofoil, the fuse
+              cross-section has to be that aerofoil, stood on end.
+            </p>
+            <p>
+              The chord follows <code>c &asymp; h / sin&alpha;</code>, so at 10&deg; a 38&nbsp;mm fuse presents a
+              219&nbsp;mm chord. At <code>&alpha; = 0</code> the cut degenerates to the horizontal plan section of
+              chord <code>L</code>, which is the familiar picture, and the model passes through that case
+              continuously.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>How the drag is estimated</summary>
+          <div class="body">
+            <p>
+              Two independent estimates run side by side, because neither alone deserves much trust.
+            </p>
+            <p>
+              <b>Headline number.</b> Every parallel cut across the body is built, each is given a section drag
+              coefficient from flat-plate skin friction with a Hoerner strut form factor
+              <code>1 + 2(t/c) + 60(t/c)&#8308;</code> applied to the real wetted perimeter, plus separate blunt
+              leading-edge and blunt base terms proportional to the cut-off thickness there. Those are integrated
+              across the body to give the force. Seawater at <code>&nu; = 1.05&times;10&#8315;&#8310;</code>&nbsp;m&sup2;/s,
+              <code>&rho; = 1025</code>&nbsp;kg/m&sup3;.
+            </p>
+            <p>
+              <b>Section solve.</b> The selected cut is run through a constant-strength source panel method for
+              the inviscid surface velocity, then a Thwaites laminar boundary layer, Michel transition, and Head's
+              entrainment method for the turbulent part, with Squire&ndash;Young for the profile drag. This is
+              where separation shows up.
+            </p>
+            <p>
+              Both are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
+              downforce, the front wing's downwash, and all three-dimensional relief, so absolute numbers are
+              indicative. Differences between shapes at the same angle are the useful output.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Add a fuse</summary>
+          <div class="body">
+            <p>
+              The current settings as a config block. Drop it into <code>fuses/</code> as a
+              <code>.json</code> file and open a pull request, or paste one in below to load it.
+            </p>
+            <textarea id="cfgOut" spellcheck="false"></textarea>
+            <div class="seg">
+              <button class="btn" id="cfgLoad">Load pasted config</button>
+              <button class="btn ghost" id="cfgCopy">Copy</button>
+            </div>
+            <p>
+              The bundled shapes are archetypes for exploring the geometry, not measured brand geometry. If you
+              have callipers and a real fuse, measured numbers are much more interesting than my guesses.
+            </p>
+          </div>
+        </details>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   Constants
+   ===================================================================== */
+const NU  = 1.05e-6;   // seawater kinematic viscosity, m^2/s
+const RHO = 1025;      // seawater density, kg/m^3
+const K_BASE = 0.60;   // blunt base drag coefficient on base area
+const K_NOSE = 0.30;   // blunt leading edge penalty on frontal area
+const NACA_PEAK = 0.09966;
+
+const PALETTE = ["#2d7277", "#bd6b3f", "#4a6f9c", "#8a7a3f", "#7a4a6f", "#3f8a5c"];
+
+/* =====================================================================
+   Cross-section outline functions
+   Phi(zeta) = half-width / max half-width, for zeta in [-1, 1]
+   ===================================================================== */
+function nacaThickness(xi) {
+  if (xi <= 0 || xi >= 1) return 0;
+  const f = 0.2969 * Math.sqrt(xi) - 0.1260 * xi - 0.3516 * xi * xi
+          + 0.2843 * xi * xi * xi - 0.1036 * xi * xi * xi * xi;
+  return Math.max(0, f / NACA_PEAK);
+}
+
+function makePhi(sec) {
+  if (sec.type === "superellipse") {
+    const n = sec.n;
+    return (z) => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(z), n)), 1 / n);
+  }
+  if (sec.type === "rect") {
+    return (z, g) => {
+      const az = Math.abs(z);
+      const zr = Math.min(0.98, sec.fillet / Math.max(g.b, 1e-6));
+      const yr = Math.min(0.98, sec.fillet / Math.max(g.a, 1e-6));
+      if (az <= 1 - zr) return 1;
+      const s = (az - (1 - zr)) / zr;
+      return 1 - yr + yr * Math.sqrt(Math.max(0, 1 - s * s));
+    };
+  }
+  if (sec.type === "naca") {
+    return (z) => nacaThickness(sec.flip ? (1 - z) / 2 : (z + 1) / 2);
+  }
+  return () => 1;
+}
+
+/* =====================================================================
+   Fuse envelope along the length
+   ===================================================================== */
+function taperFactor(s, nose, tail) {
+  let f = 1;
+  if (nose && nose.f > 0 && s < nose.f) {
+    const q = s / nose.f;
+    f *= Math.pow(Math.max(0, 1 - Math.pow(1 - q, nose.p)), 1 / nose.p);
+  }
+  if (tail && tail.f > 0 && s > 1 - tail.f) {
+    const q = (1 - s) / tail.f;
+    f *= Math.pow(Math.max(0, 1 - Math.pow(1 - q, tail.p)), 1 / tail.p);
+  }
+  return f;
+}
+
+function fuseAt(fuse, x) {
+  const s = x / fuse.L;
+  return {
+    a: 0.5 * fuse.w * taperFactor(s, fuse.wNose, fuse.wTail),
+    b: 0.5 * fuse.h * taperFactor(s, fuse.hNose, fuse.hTail),
+    zc: 0
+  };
+}
+
+/* =====================================================================
+   Slicing
+   ===================================================================== */
+function halfThickness(fuse, phi, u, d, sa, ca) {
+  const x = u * ca - d * sa;
+  if (x < 0 || x > fuse.L) return 0;
+  const z = u * sa + d * ca;
+  const g = fuseAt(fuse, x);
+  if (g.a <= 1e-7 || g.b <= 1e-7) return 0;
+  const zeta = (z - g.zc) / g.b;
+  if (Math.abs(zeta) > 1) return 0;
+  return g.a * phi(zeta, g);
+}
+
+function sliceOffsetRange(fuse, sa, ca) {
+  // d = -x sin a + z cos a, x in [0,L], z in [-h/2, h/2]
+  const hb = fuse.h / 2;
+  return { lo: -fuse.L * sa - hb * ca, hi: hb * ca };
+}
+
+function buildSection(fuse, alphaDeg, d, N) {
+  const A = alphaDeg * Math.PI / 180, sa = Math.sin(A), ca = Math.cos(A);
+  const phi = makePhi(fuse.section);
+  const hb = fuse.h / 2;
+  const uLo = -hb * Math.abs(sa) - 2;
+  const uHi = fuse.L * ca + hb * Math.abs(sa) + 2;
+
+  const M = 1400;
+  const du = (uHi - uLo) / M;
+  let first = -1, last = -1;
+  for (let k = 0; k <= M; k++) {
+    if (halfThickness(fuse, phi, uLo + du * k, d, sa, ca) > 1e-7) {
+      if (first < 0) first = k;
+      last = k;
+    }
+  }
+  if (first < 0 || last <= first) return null;
+
+  // refine the two edges by bisection
+  const edge = (kOut, kIn) => {
+    let a = uLo + du * kOut, b = uLo + du * kIn;
+    for (let i = 0; i < 40; i++) {
+      const m = 0.5 * (a + b);
+      if (halfThickness(fuse, phi, m, d, sa, ca) > 1e-7) b = m; else a = m;
+    }
+    return b;
+  };
+  const uLE = edge(first - 1, first);
+  const uTE = edge(last + 1, last);
+  const chord = uTE - uLE;
+  if (!(chord > 1e-6)) return null;
+
+  // cosine clustering towards both ends
+  const u = new Float64Array(N), t = new Float64Array(N);
+  for (let k = 0; k < N; k++) {
+    const f = 0.5 * (1 - Math.cos(Math.PI * k / (N - 1)));
+    u[k] = uLE + chord * f;
+    t[k] = halfThickness(fuse, phi, u[k], d, sa, ca);
+  }
+  // the clustered endpoints sit exactly on the boundary; nudge inward to pick up
+  // the real thickness of a cut-off (blunt) end
+  const eps = chord * 1e-5;
+  t[0]     = halfThickness(fuse, phi, u[0] + eps, d, sa, ca);
+  t[N - 1] = halfThickness(fuse, phi, u[N - 1] - eps, d, sa, ca);
+
+  let tmax = 0, tmaxAt = 0, area = 0, perim = 0;
+  for (let k = 0; k < N; k++) if (t[k] > tmax) { tmax = t[k]; tmaxAt = (u[k] - uLE) / chord; }
+  for (let k = 1; k < N; k++) {
+    const dx = u[k] - u[k - 1];
+    area += (t[k] + t[k - 1]) * dx;                       // 2 * mean half-thickness * dx
+    perim += 2 * Math.hypot(dx, t[k] - t[k - 1]);          // both surfaces
+  }
+  perim += 2 * t[0] + 2 * t[N - 1];                        // blunt ends
+
+  return {
+    u, t, N, uLE, uTE, chord,
+    tmax: 2 * tmax, tmaxAt,
+    tLE: 2 * t[0], tTE: 2 * t[N - 1],
+    area, perim, d, alpha: alphaDeg
+  };
+}
+
+/* =====================================================================
+   Empirical section drag
+   ===================================================================== */
+function flatPlateCf(Re) {
+  if (!(Re > 1)) return 0.01;
+  const lam = 1.328 / Math.sqrt(Re);
+  const turb = 0.074 / Math.pow(Re, 0.2) - 1700 / Re;
+  return Math.max(lam, turb, 1e-4);
+}
+
+function sectionDrag(sec, V) {
+  const c = sec.chord / 1000;
+  if (!(c > 1e-5)) return null;
+  const tc = sec.tmax / sec.chord;
+  const Re = V * c / NU;
+  const Cf = flatPlateCf(Re);
+  const FF = 1 + 2 * tc + 60 * Math.pow(tc, 4);
+  const Cdf = Cf * FF * (sec.perim / 1000) / c;
+  const Cdb = K_BASE * (sec.tTE / sec.chord);
+  const Cdn = K_NOSE * (sec.tLE / sec.chord);
+  return { Cd: Cdf + Cdb + Cdn, Cdf, Cdb, Cdn, Re, Cf, FF, tc, c };
+}
+
+function totalDrag(fuse, alphaDeg, V, nSlices) {
+  const A = alphaDeg * Math.PI / 180, sa = Math.sin(A), ca = Math.cos(A);
+  const r = sliceOffsetRange(fuse, sa, ca);
+  const dd = (r.hi - r.lo) / nSlices;
+  const q = 0.5 * RHO * V * V;
+  let D = 0, wet = 0;
+  for (let i = 0; i < nSlices; i++) {
+    const d = r.lo + dd * (i + 0.5);
+    const sec = buildSection(fuse, alphaDeg, d, 121);
+    if (!sec) continue;
+    const dr = sectionDrag(sec, V);
+    if (!dr) continue;
+    D += dr.Cd * q * (sec.chord / 1000) * (dd / 1000);
+    wet += (sec.perim / 1000) * (dd / 1000);
+  }
+  return { D, wet, power: D * V };
+}
+
+/* =====================================================================
+   Source panel method (constant strength, non-lifting)
+   Polygon must be closed and clockwise so that (-sin, cos) points outward.
+   ===================================================================== */
+function sectionPolygon(sec) {
+  const P = [];
+  const push = (x, y) => {
+    const n = P.length;
+    if (n && Math.hypot(x - P[n - 1][0], y - P[n - 1][1]) < sec.chord * 2e-4) return;
+    P.push([x, y]);
+  };
+  for (let k = sec.N - 1; k >= 0; k--) push(sec.u[k], -sec.t[k]);
+  for (let k = 0; k < sec.N; k++) push(sec.u[k], sec.t[k]);
+  if (P.length > 2 && Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1]) < sec.chord * 2e-4) P.pop();
+  return P;
+}
+
+function resample(P, n) {
+  // arc-length resample of a closed polygon to n points
+  const m = P.length;
+  const seg = new Float64Array(m);
+  let total = 0;
+  for (let i = 0; i < m; i++) {
+    const j = (i + 1) % m;
+    seg[i] = Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]);
+    total += seg[i];
+  }
+  const out = [];
+  let i = 0, acc = 0;
+  for (let k = 0; k < n; k++) {
+    const target = total * k / n;
+    while (i < m - 1 && acc + seg[i] < target) { acc += seg[i]; i++; }
+    const f = seg[i] > 1e-12 ? (target - acc) / seg[i] : 0;
+    const j = (i + 1) % m;
+    out.push([P[i][0] + f * (P[j][0] - P[i][0]), P[i][1] + f * (P[j][1] - P[i][1])]);
+  }
+  return out;
+}
+
+function panelSolve(P, Vinf) {
+  const N = P.length;
+  const xm = new Float64Array(N), ym = new Float64Array(N);
+  const cs = new Float64Array(N), sn = new Float64Array(N), len = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N;
+    const dx = P[j][0] - P[i][0], dy = P[j][1] - P[i][1];
+    const L = Math.hypot(dx, dy) || 1e-9;
+    len[i] = L; cs[i] = dx / L; sn[i] = dy / L;
+    xm[i] = 0.5 * (P[i][0] + P[j][0]); ym[i] = 0.5 * (P[i][1] + P[j][1]);
+  }
+
+  const A = [];
+  const b = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    const row = new Float64Array(N);
+    // outward normal for a clockwise polygon
+    const nx = -sn[i], ny = cs[i];
+    for (let j = 0; j < N; j++) {
+      if (i === j) { row[j] = 0.5; continue; }
+      // point in panel j local frame
+      const rx = xm[i] - P[j][0], ry = ym[i] - P[j][1];
+      const lx =  rx * cs[j] + ry * sn[j];
+      const ly = -rx * sn[j] + ry * cs[j];
+      const S = len[j];
+      const r1sq = lx * lx + ly * ly;
+      const r2sq = (lx - S) * (lx - S) + ly * ly;
+      const up = 0.25 / Math.PI * Math.log(Math.max(r1sq, 1e-30) / Math.max(r2sq, 1e-30));
+      const vp = 0.5 / Math.PI * (Math.atan2(ly, lx - S) - Math.atan2(ly, lx));
+      // back to global
+      const gx = up * cs[j] - vp * sn[j];
+      const gy = up * sn[j] + vp * cs[j];
+      row[j] = gx * nx + gy * ny;
+    }
+    A.push(row);
+    b[i] = -(Vinf * nx);
+  }
+
+  const sigma = gauss(A, b, N);
+  if (!sigma) return null;
+
+  const Vt = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    const tx = cs[i], ty = sn[i];
+    let vx = Vinf, vy = 0;
+    for (let j = 0; j < N; j++) {
+      if (i === j) continue;
+      const rx = xm[i] - P[j][0], ry = ym[i] - P[j][1];
+      const lx =  rx * cs[j] + ry * sn[j];
+      const ly = -rx * sn[j] + ry * cs[j];
+      const S = len[j];
+      const r1sq = lx * lx + ly * ly;
+      const r2sq = (lx - S) * (lx - S) + ly * ly;
+      const up = 0.25 / Math.PI * Math.log(Math.max(r1sq, 1e-30) / Math.max(r2sq, 1e-30));
+      const vp = 0.5 / Math.PI * (Math.atan2(ly, lx - S) - Math.atan2(ly, lx));
+      vx += sigma[j] * (up * cs[j] - vp * sn[j]);
+      vy += sigma[j] * (up * sn[j] + vp * cs[j]);
+    }
+    Vt[i] = vx * tx + vy * ty;
+  }
+  return { Vt, xm, ym, len, N };
+}
+
+function gauss(A, b, n) {
+  const M = A.map((r, i) => { const a = Array.from(r); a.push(b[i]); return a; });
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-14) return null;
+    if (p !== c) { const tmp = M[p]; M[p] = M[c]; M[c] = tmp; }
+    const piv = M[c][c];
+    for (let r = c + 1; r < n; r++) {
+      const f = M[r][c] / piv;
+      if (f === 0) continue;
+      for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  const x = new Float64Array(n);
+  for (let r = n - 1; r >= 0; r--) {
+    let s = M[r][n];
+    for (let k = r + 1; k < n; k++) s -= M[r][k] * x[k];
+    x[r] = s / M[r][r];
+  }
+  return x;
+}
+
+/* =====================================================================
+   Integral boundary layer: Thwaites -> Michel -> Head -> Squire-Young
+   Inputs in metres.
+   ===================================================================== */
+function headH1(H) {
+  if (H <= 1.1) H = 1.1001;
+  return H <= 1.6 ? 3.3 + 0.8234 * Math.pow(H - 1.1, -1.287)
+                  : 3.3 + 1.5501 * Math.pow(H - 0.6778, -3.064);
+}
+function headHfromH1(H1) {
+  if (H1 <= 3.32) return 2.8;
+  let lo = 1.05, hi = 2.8;
+  for (let i = 0; i < 45; i++) {
+    const mid = 0.5 * (lo + hi);
+    if (headH1(mid) > H1) lo = mid; else hi = mid;
+  }
+  return 0.5 * (lo + hi);
+}
+
+function boundaryLayer(s, Ue, xc, V, chord) {
+  const n = s.length;
+  const out = { sep: null, bubble: null, trans: null, theta: 0, H: 0, UeTE: 0, Cd: null,
+                attached: true, mildTE: false, stalled: false };
+  if (n < 8) return out;
+
+  let theta = 0, H = 2.4, turbulent = false, integ = 0;
+  let sepIdx = -1, transIdx = -1, bubbleIdx = -1, lastIdx = 1;
+
+  // Stop short of the trailing edge. The inviscid solution stagnates at a cusp, which
+  // produces an artificial pressure spike that both forces a false separation and
+  // collapses the Squire-Young edge velocity to nothing.
+  const X_END = 0.985;
+
+  for (let i = 1; i < n; i++) {
+    if (xc[i] > X_END) break;
+    lastIdx = i;
+    const ds = Math.max(s[i] - s[i - 1], 1e-9);
+    const ue = Math.max(Ue[i], 1e-4);
+    const duds = (Ue[i] - Ue[i - 1]) / ds;
+
+    if (!turbulent) {
+      integ += 0.5 * (Math.pow(Ue[i], 5) + Math.pow(Ue[i - 1], 5)) * ds;
+      theta = Math.sqrt(Math.max(0.45 * NU * integ / Math.pow(ue, 6), 1e-18));
+      const lam = Math.max(-0.12, Math.min(0.25, theta * theta / NU * duds));
+      const Hl = lam >= 0 ? 2.61 - 3.75 * lam + 5.24 * lam * lam
+                          : 2.088 + 0.0731 / (lam + 0.14);
+      H = Math.max(2.0, Math.min(4.0, Hl));
+      const ReT = ue * theta / NU;
+      const ReS = ue * Math.max(s[i], 1e-6) / NU;
+      const michel = 1.174 * (1 + 22400 / Math.max(ReS, 1)) * Math.pow(Math.max(ReS, 1), 0.46);
+      if (lam <= -0.09) {
+        // laminar separation: short bubble, reattaches turbulent
+        bubbleIdx = i; transIdx = i; turbulent = true; H = 1.5;
+      } else if (ReT > michel) {
+        transIdx = i; turbulent = true; H = 1.4;
+      }
+    } else {
+      const ReT = Math.max(ue * theta / NU, 20);
+      const Cf = 0.246 * Math.pow(10, -0.678 * H) * Math.pow(ReT, -0.268);
+      const H1 = headH1(H);
+      const E = 0.0306 * Math.pow(Math.max(H1 - 3.0, 0.01), -0.6169);
+      const dtheta = Cf / 2 - (H + 2) * theta / ue * duds;
+      // d(Ue.theta.H1)/dx = Ue.theta.E
+      const dH1 = E - H1 * (dtheta / Math.max(theta, 1e-9) + duds / ue);
+      theta = Math.max(theta + dtheta * ds, 1e-9);
+      H = headHfromH1(Math.max(headH1(2.79), H1 + dH1 * ds));
+      if (H > 2.6 && sepIdx < 0) { sepIdx = i; break; }
+    }
+  }
+
+  const clampXc = i => Math.max(0, Math.min(1, xc[Math.min(i, n - 1)]));
+  out.theta = theta;
+  out.H = H;
+  out.UeTE = Ue[lastIdx];
+  out.trans   = transIdx  >= 0 ? clampXc(transIdx)  : null;
+  out.bubble  = bubbleIdx >= 0 ? clampXc(bubbleIdx) : null;
+  out.sep     = sepIdx    >= 0 ? clampXc(sepIdx)    : null;
+  // Graded, not binary. Separation in the aft 15% is ordinary trailing-edge behaviour on a
+  // thin section and Squire-Young is still usable if applied at the separation point.
+  // Separation forward of that is a stalled section and the solve cannot give a drag at all.
+  out.attached = sepIdx < 0;
+  out.mildTE = sepIdx >= 0 && clampXc(sepIdx) >= 0.85;
+  out.stalled = sepIdx >= 0 && clampXc(sepIdx) < 0.85;
+
+  if (out.stalled) {
+    out.Cd = null;
+    return out;
+  }
+  const ratio = Math.max(0.4, Math.min(1.6, out.UeTE / V));
+  out.Cd = Math.min(2 * (2 * (theta / chord) * Math.pow(ratio, (Math.min(H, 3.0) + 5) / 2)), 1.5);
+  return out;
+}
+
+function runSectionCFD(sec, V) {
+  try {
+    const P0 = sectionPolygon(sec);
+    if (P0.length < 12) return null;
+    const nPan = 150;
+    const P = resample(P0.map(p => [p[0] / 1000, p[1] / 1000]), nPan);
+    const sol = panelSolve(P, V);
+    if (!sol) return null;
+
+    // upper surface: panels from the minimum-x midpoint onwards
+    let iLE = 0;
+    for (let i = 1; i < sol.N; i++) if (sol.xm[i] < sol.xm[iLE]) iLE = i;
+    const idx = [];
+    for (let i = iLE; i < sol.N; i++) idx.push(i);
+    if (idx.length < 8) return null;
+
+    const s = [], Ue = [], xc = [], cp = [];
+    let acc = 0;
+    for (let k = 0; k < idx.length; k++) {
+      const i = idx[k];
+      if (k > 0) acc += 0.5 * (sol.len[i] + sol.len[idx[k - 1]]);
+      s.push(acc);
+      const u = Math.abs(sol.Vt[i]);
+      Ue.push(Math.min(u, 4 * V));
+      xc.push((sol.xm[i] - sec.uLE / 1000) / (sec.chord / 1000));
+      cp.push(1 - Math.pow(Math.min(u, 4 * V) / V, 2));
+    }
+    const bl = boundaryLayer(s, Ue, xc, V, sec.chord / 1000);
+    return { xc, cp, Ue, s, bl };
+  } catch (e) {
+    return null;
+  }
+}
+
+/* =====================================================================
+   Fuse library
+   ===================================================================== */
+const T = (f, p) => ({ f, p });
+
+const LIBRARY = [
+  {
+    id: "rod-round", name: "Round bar, Ø30", colour: PALETTE[0],
+    L: 640, h: 30, w: 30,
+    section: { type: "superellipse", n: 2 },
+    wNose: T(0.05, 2), wTail: T(0.05, 2), hNose: T(0.05, 2), hTail: T(0.05, 2),
+    note: "The classic round tube. Has to be fat to be stiff, and the fatness goes straight into t/c at angle."
+  },
+  {
+    id: "bar-square", name: "Square bar, 26 × 26", colour: PALETTE[1],
+    L: 640, h: 26, w: 26,
+    section: { type: "rect", fillet: 1.5 },
+    wNose: T(0.04, 3), wTail: T(0.04, 3), hNose: T(0, 2), hTail: T(0, 2),
+    note: "Reference worst case. Every streamwise cut comes out as a rectangle with a blunt nose and a blunt base."
+  },
+  {
+    id: "blade-rect", name: "Boxy blade, 38 × 13", colour: PALETTE[2],
+    L: 640, h: 38, w: 13,
+    section: { type: "rect", fillet: 2.5 },
+    wNose: T(0.06, 2.5), wTail: T(0.06, 2.5), hNose: T(0, 2), hTail: T(0, 2),
+    note: "Tall and thin, but with flat sides and small corner radii. Thin enough that t/c stays low anyway."
+  },
+  {
+    id: "blade-ellipse", name: "Elliptical blade, 38 × 13", colour: PALETTE[3],
+    L: 640, h: 38, w: 13,
+    section: { type: "superellipse", n: 2 },
+    wNose: T(0.06, 2), wTail: T(0.06, 2), hNose: T(0, 2), hTail: T(0, 2),
+    note: "A true ellipse in section, so every streamwise cut is also an ellipse. Sharp at both ends, no base drag."
+  },
+  {
+    id: "blade-squircle", name: "Squircle blade, 34 × 15", colour: PALETTE[4],
+    L: 640, h: 34, w: 15,
+    section: { type: "superellipse", n: 3.2 },
+    wNose: T(0.07, 2), wTail: T(0.07, 2), hNose: T(0, 2), hTail: T(0, 2),
+    note: "Somewhere between an ellipse and a rectangle, which is where most moulded carbon fuses sit."
+  },
+  {
+    id: "flow-aligned", name: "Flow-aligned, 38 × 13", colour: PALETTE[5],
+    L: 640, h: 38, w: 13,
+    section: { type: "naca", flip: false },
+    wNose: T(0.06, 2), wTail: T(0.06, 2), hNose: T(0, 2), hTail: T(0, 2),
+    note: "Cross-section is an aerofoil stood on end, rounded nose downward. The streamwise cut at pump angle then comes out as a proper aerofoil rather than an ellipse or a slab."
+  }
+];
+
+function cloneFuse(f) { return JSON.parse(JSON.stringify(f)); }
+
+/* =====================================================================
+   State
+   ===================================================================== */
+const S = {
+  fuse: cloneFuse(LIBRARY[5]),
+  alpha: 10,
+  V: 4.5,
+  slicePos: 0.5,
+  compare: new Set(["rod-round", "bar-square", "blade-ellipse", "flow-aligned"]),
+  az: -0.62, el: 0.30,
+  cache: new Map()
+};
+
+/* =====================================================================
+   Canvas helpers
+   ===================================================================== */
+function fit(cv) {
+  // Cache the intended CSS height once. Assigning cv.height rewrites the height
+  // attribute, so re-reading it would compound by the device pixel ratio every render.
+  if (!cv.dataset.cssH) cv.dataset.cssH = cv.getAttribute("height");
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = parseInt(cv.dataset.cssH, 10);
+  cv.style.height = h + "px";
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+function text(ctx, str, x, y, opt = {}) {
+  ctx.save();
+  ctx.fillStyle = opt.colour || "#5f6d73";
+  ctx.font = opt.font || "11px 'Avenir Next', sans-serif";
+  ctx.textAlign = opt.align || "left";
+  ctx.textBaseline = opt.baseline || "alphabetic";
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+
+/* =====================================================================
+   3D view
+   ===================================================================== */
+function fuseMesh(fuse, nx, nring) {
+  const phi = makePhi(fuse.section);
+  const rings = [];
+  for (let i = 0; i <= nx; i++) {
+    const x = fuse.L * i / nx;
+    const g = fuseAt(fuse, x);
+    const ring = [];
+    for (let k = 0; k <= nring; k++) {
+      const zeta = -Math.cos(Math.PI * k / nring);
+      ring.push([x, g.a * phi(zeta, g), g.zc + g.b * zeta]);
+    }
+    for (let k = nring - 1; k >= 1; k--) {
+      const zeta = -Math.cos(Math.PI * k / nring);
+      ring.push([x, -g.a * phi(zeta, g), g.zc + g.b * zeta]);
+    }
+    rings.push(ring);
+  }
+  return rings;
+}
+
+function draw3D() {
+  const cv = document.getElementById("c3d");
+  const { ctx, w, h } = fit(cv);
+  const f = S.fuse;
+  const A = S.alpha * Math.PI / 180, sa = Math.sin(A), ca = Math.cos(A);
+
+  const az = S.az, el = S.el;
+  const fw = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
+  const rt = [-Math.sin(az), Math.cos(az), 0];
+  const up = [-Math.sin(el) * Math.cos(az), -Math.sin(el) * Math.sin(az), Math.cos(el)];
+  const cen = [f.L / 2, 0, 0];
+  const scale = Math.min(w / (f.L * 1.25), h / (f.h * 4.2));
+  const proj = (p) => {
+    const q = [p[0] - cen[0], p[1] - cen[1], p[2] - cen[2]];
+    return [w / 2 + (q[0] * rt[0] + q[1] * rt[1] + q[2] * rt[2]) * scale,
+            h / 2 - (q[0] * up[0] + q[1] * up[1] + q[2] * up[2]) * scale,
+            q[0] * fw[0] + q[1] * fw[1] + q[2] * fw[2]];
+  };
+
+  const rings = fuseMesh(f, 54, 26);
+  const faces = [];
+  const light = [0.35, 0.55, 0.76];
+  for (let i = 0; i < rings.length - 1; i++) {
+    const r0 = rings[i], r1 = rings[i + 1];
+    for (let k = 0; k < r0.length - 1; k++) {
+      const quad = [r0[k], r0[k + 1], r1[k + 1], r1[k]];
+      const ux = [quad[1][0] - quad[0][0], quad[1][1] - quad[0][1], quad[1][2] - quad[0][2]];
+      const vx = [quad[3][0] - quad[0][0], quad[3][1] - quad[0][1], quad[3][2] - quad[0][2]];
+      const n = [ux[1] * vx[2] - ux[2] * vx[1], ux[2] * vx[0] - ux[0] * vx[2], ux[0] * vx[1] - ux[1] * vx[0]];
+      const nl = Math.hypot(n[0], n[1], n[2]) || 1;
+      const lam = Math.abs((n[0] * light[0] + n[1] * light[1] + n[2] * light[2]) / nl);
+      const pts = quad.map(proj);
+      const depth = (pts[0][2] + pts[1][2] + pts[2][2] + pts[3][2]) / 4;
+      const shade = 0.30 + 0.70 * lam;
+      faces.push({ pts, depth, fill: `rgb(${Math.round(78 + 120 * shade)},${Math.round(112 + 108 * shade)},${Math.round(116 + 104 * shade)})` });
+    }
+  }
+
+  // cutting plane
+  const dR = sliceOffsetRange(f, sa, ca);
+  const d = dR.lo + (dR.hi - dR.lo) * S.slicePos;
+  const uSpan = [-f.h, f.L * ca + f.h];
+  const vSpan = f.h * 0.9;
+  const planePt = (u, v) => [u * ca - d * sa, v, u * sa + d * ca];
+  const planeQuad = [planePt(uSpan[0], -vSpan), planePt(uSpan[1], -vSpan),
+                     planePt(uSpan[1], vSpan), planePt(uSpan[0], vSpan)].map(proj);
+  faces.push({
+    pts: planeQuad, depth: (planeQuad[0][2] + planeQuad[2][2]) / 2 - 1e-3,
+    fill: "rgba(189,107,63,0.20)", stroke: "rgba(189,107,63,0.55)"
+  });
+
+  faces.sort((a, b) => a.depth - b.depth);
+  for (const fc of faces) {
+    ctx.beginPath();
+    ctx.moveTo(fc.pts[0][0], fc.pts[0][1]);
+    for (let i = 1; i < fc.pts.length; i++) ctx.lineTo(fc.pts[i][0], fc.pts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = fc.fill; ctx.fill();
+    if (fc.stroke) { ctx.strokeStyle = fc.stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  // the slice outline itself, drawn on top
+  const sec = currentSection();
+  if (sec) {
+    ctx.beginPath();
+    let started = false;
+    const ring = [];
+    for (let k = 0; k < sec.N; k++) ring.push(planePt(sec.u[k], sec.t[k]));
+    for (let k = sec.N - 1; k >= 0; k--) ring.push(planePt(sec.u[k], -sec.t[k]));
+    for (const p of ring) {
+      const q = proj(p);
+      if (!started) { ctx.moveTo(q[0], q[1]); started = true; } else ctx.lineTo(q[0], q[1]);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(255,247,235,0.82)"; ctx.fill();
+    ctx.strokeStyle = "#bd6b3f"; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+
+  text(ctx, "nose", ...proj([0, 0, f.h * 1.4]).slice(0, 2), { align: "center" });
+  text(ctx, "tail", ...proj([f.L, 0, f.h * 1.4]).slice(0, 2), { align: "center" });
+}
+
+/* =====================================================================
+   Side view
+   ===================================================================== */
+function drawSide() {
+  const cv = document.getElementById("cside");
+  const { ctx, w, h } = fit(cv);
+  const f = S.fuse;
+  const A = S.alpha * Math.PI / 180, sa = Math.sin(A), ca = Math.cos(A);
+  const pad = 34;
+  const scale = Math.min((w - 2 * pad) / f.L, (h - 2 * pad) / (f.h * 3.4));
+  const X = x => pad + x * scale;
+  const Y = z => h / 2 - z * scale;
+
+  // fuse silhouette
+  ctx.beginPath();
+  for (let i = 0; i <= 120; i++) { const x = f.L * i / 120; ctx.lineTo(X(x), Y(fuseAt(f, x).b)); }
+  for (let i = 120; i >= 0; i--) { const x = f.L * i / 120; ctx.lineTo(X(x), Y(-fuseAt(f, x).b)); }
+  ctx.closePath();
+  ctx.fillStyle = "rgba(45,114,119,0.24)"; ctx.fill();
+  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 1.4; ctx.stroke();
+
+  // flow arrows at the pump angle
+  ctx.strokeStyle = "rgba(21,34,41,0.35)"; ctx.lineWidth = 1;
+  for (let k = -2; k <= 2; k++) {
+    const z0 = k * f.h * 0.85;
+    const x0 = -60, x1 = f.L + 40;
+    const p0 = [X(x0), Y(z0 + x0 * Math.tan(A))];
+    const p1 = [X(x1), Y(z0 + x1 * Math.tan(A))];
+    ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+    // arrow head
+    const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
+    ctx.beginPath();
+    ctx.moveTo(p1[0], p1[1]);
+    ctx.lineTo(p1[0] - 7 * Math.cos(ang - 0.4), p1[1] - 7 * Math.sin(ang - 0.4));
+    ctx.moveTo(p1[0], p1[1]);
+    ctx.lineTo(p1[0] - 7 * Math.cos(ang + 0.4), p1[1] - 7 * Math.sin(ang + 0.4));
+    ctx.stroke();
+  }
+
+  // the cut line
+  const dR = sliceOffsetRange(f, sa, ca);
+  const d = dR.lo + (dR.hi - dR.lo) * S.slicePos;
+  const sec = currentSection();
+  if (sec) {
+    const p = u => [X(u * ca - d * sa), Y(u * sa + d * ca)];
+    const a = p(sec.uLE - f.h * 0.6), b = p(sec.uTE + f.h * 0.6);
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = "rgba(189,107,63,0.6)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.setLineDash([]);
+    const c0 = p(sec.uLE), c1 = p(sec.uTE);
+    ctx.strokeStyle = "#bd6b3f"; ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(c0[0], c0[1]); ctx.lineTo(c1[0], c1[1]); ctx.stroke();
+    text(ctx, `chord ${sec.chord.toFixed(0)} mm`, (c0[0] + c1[0]) / 2, (c0[1] + c1[1]) / 2 - 8,
+      { align: "center", colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
+  }
+
+  text(ctx, `${S.alpha.toFixed(1)}°`, pad + 6, h - 12, { colour: "#5f6d73" });
+  text(ctx, `${f.L} mm`, w - pad, h - 12, { align: "right" });
+}
+
+/* =====================================================================
+   Section view
+   ===================================================================== */
+function drawSection() {
+  const cv = document.getElementById("csec");
+  const { ctx, w, h } = fit(cv);
+  const sec = currentSection();
+  if (!sec) { text(ctx, "no material at this cut", w / 2, h / 2, { align: "center" }); return; }
+
+  const pad = 40;
+  const others = [...S.compare].map(id => LIBRARY.find(x => x.id === id)).filter(Boolean);
+  let maxChord = sec.chord, maxT = sec.tmax;
+  const cmp = [];
+  for (const o of others) {
+    const s2 = sectionFor(o, S.alpha, 0.5);
+    if (s2) { cmp.push({ f: o, s: s2 }); maxChord = Math.max(maxChord, s2.chord); maxT = Math.max(maxT, s2.tmax); }
+  }
+  const scale = Math.min((w - 2 * pad) / maxChord, (h - 2 * pad) / (maxT * 2.6));
+  const X = u => pad + (u - sec.uLE) * scale;
+  const Y = t => h / 2 - t * scale;
+
+  // chord axis
+  ctx.strokeStyle = "rgba(21,34,41,0.16)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad * 0.5, h / 2); ctx.stroke();
+
+  const outline = (s, ox) => {
+    ctx.beginPath();
+    for (let k = 0; k < s.N; k++) ctx.lineTo(pad + (s.u[k] - s.uLE) * scale + ox, Y(s.t[k]));
+    for (let k = s.N - 1; k >= 0; k--) ctx.lineTo(pad + (s.u[k] - s.uLE) * scale + ox, Y(-s.t[k]));
+    ctx.closePath();
+  };
+
+  for (const c of cmp) {
+    if (c.f.id === S.fuse.id) continue;
+    outline(c.s, 0);
+    ctx.strokeStyle = c.f.colour + "88"; ctx.lineWidth = 1.2; ctx.stroke();
+  }
+  outline(sec, 0);
+  ctx.fillStyle = "rgba(45,114,119,0.22)"; ctx.fill();
+  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 2; ctx.stroke();
+
+  // annotations
+  const xt = pad + sec.tmaxAt * sec.chord * scale;
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(21,34,41,0.3)";
+  ctx.beginPath(); ctx.moveTo(xt, Y(sec.tmax / 2)); ctx.lineTo(xt, Y(-sec.tmax / 2)); ctx.stroke();
+  ctx.setLineDash([]);
+  text(ctx, `t = ${sec.tmax.toFixed(1)} mm`, xt + 5, Y(sec.tmax / 2) - 5);
+  text(ctx, "flow →", pad, h - 12, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
+  text(ctx, `chord ${sec.chord.toFixed(0)} mm`, w - pad * 0.5, h - 12, { align: "right" });
+}
+
+/* =====================================================================
+   Cp + BL view
+   ===================================================================== */
+function drawCp(cfd) {
+  const cv = document.getElementById("ccp");
+  const { ctx, w, h } = fit(cv);
+  const flag = document.getElementById("cfdFlag");
+  if (!cfd) {
+    text(ctx, "section solve did not converge for this shape", w / 2, h / 2, { align: "center" });
+    flag.innerHTML = "";
+    return;
+  }
+  const pad = { l: 42, r: 14, t: 14, b: 26 };
+  let cpMin = 0, cpMax = 1;
+  for (const v of cfd.cp) { cpMin = Math.min(cpMin, v); cpMax = Math.max(cpMax, v); }
+  cpMin = Math.max(cpMin, -3.2);
+  const X = x => pad.l + x * (w - pad.l - pad.r);
+  const Y = cp => pad.t + (cp - cpMin) / (cpMax - cpMin) * (h - pad.t - pad.b);
+
+  // gridlines
+  ctx.strokeStyle = "rgba(21,34,41,0.1)"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const cp = cpMin + (cpMax - cpMin) * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(cp)); ctx.lineTo(w - pad.r, Y(cp)); ctx.stroke();
+    text(ctx, cp.toFixed(1), pad.l - 6, Y(cp) + 3, { align: "right" });
+  }
+  text(ctx, "Cp", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
+  text(ctx, "x/c", w - pad.r, h - 8, { align: "right" });
+
+  ctx.beginPath();
+  for (let i = 0; i < cfd.cp.length; i++) {
+    const x = Math.max(0, Math.min(1, cfd.xc[i]));
+    if (i === 0) ctx.moveTo(X(x), Y(cfd.cp[i])); else ctx.lineTo(X(x), Y(Math.max(cfd.cp[i], cpMin)));
+  }
+  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 2; ctx.stroke();
+
+  const mark = (xc, colour, label) => {
+    if (xc == null || xc < 0 || xc > 1) return;
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = colour; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(X(xc), pad.t); ctx.lineTo(X(xc), h - pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+    text(ctx, label, X(xc) + 4, pad.t + 12, { colour, font: "600 10.5px 'Avenir Next', sans-serif" });
+  };
+  mark(cfd.bl.trans, "#8a7a3f", cfd.bl.bubble != null ? "bubble" : "transition");
+  mark(cfd.bl.sep, "#bd6b3f", "separation");
+
+  const pct = v => (v * 100).toFixed(0) + "% chord";
+  let msg = "", cls = "ok";
+  if (cfd.bl.stalled) {
+    cls = "warn";
+    msg = `Separated at ${pct(cfd.bl.sep)}. Beyond that the section is shedding rather than recovering
+      pressure, so the boundary layer solve cannot give a section drag at all. Read the headline
+      estimate instead, and treat it as a floor rather than an answer.`;
+  } else if (cfd.bl.mildTE) {
+    msg = `Trailing-edge separation at ${pct(cfd.bl.sep)}. Ordinary for a section this thin, and the
+      drag below is evaluated at the separation point.`;
+  } else if (cfd.bl.bubble != null) {
+    msg = `Laminar separation bubble at ${pct(cfd.bl.bubble)}, reattaching turbulent and staying
+      attached all the way back.`;
+  } else if (cfd.bl.trans != null) {
+    msg = `Attached to the trailing edge, transition at ${pct(cfd.bl.trans)}.`;
+  } else {
+    msg = `Attached and laminar the whole way. The transition correlation is marginal at this
+      Reynolds number, and real surface finish plus the turbulence coming off the mast will trip it
+      much earlier, so treat this as the optimistic bound.`;
+  }
+  if (cfd.bl.Cd != null) msg += ` Section Cd from the solve: ${cfd.bl.Cd.toFixed(4)}.`;
+  flag.className = "flag " + cls;
+  flag.textContent = msg.replace(/\s+/g, " ");
+}
+
+/* =====================================================================
+   Drag vs angle
+   ===================================================================== */
+function drawDragCurve() {
+  const cv = document.getElementById("cdrag");
+  const { ctx, w, h } = fit(cv);
+  const pad = { l: 46, r: 12, t: 14, b: 28 };
+  const angles = [];
+  for (let a = 0; a <= 24; a += 1.5) angles.push(a);
+
+  const series = [];
+  const ids = new Set([...S.compare, S.fuse.id]);
+  for (const id of ids) {
+    const base = LIBRARY.find(x => x.id === id);
+    const f = (id === S.fuse.id) ? S.fuse : base;
+    if (!f) continue;
+    const ys = angles.map(a => totalDrag(f, a, S.V, 17).D);
+    series.push({ id, colour: (base ? base.colour : "#2d7277"), ys, me: id === S.fuse.id });
+  }
+  let dMax = 0;
+  for (const s of series) for (const y of s.ys) dMax = Math.max(dMax, y);
+  dMax = Math.max(dMax, 0.5) * 1.12;
+
+  const X = a => pad.l + a / 24 * (w - pad.l - pad.r);
+  const Y = d => h - pad.b - d / dMax * (h - pad.t - pad.b);
+
+  ctx.strokeStyle = "rgba(21,34,41,0.1)"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const d = dMax * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(d)); ctx.lineTo(w - pad.r, Y(d)); ctx.stroke();
+    text(ctx, d.toFixed(1), pad.l - 6, Y(d) + 3, { align: "right" });
+  }
+  for (let a = 0; a <= 24; a += 6) text(ctx, a + "°", X(a), h - 10, { align: "center" });
+  text(ctx, "N", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
+
+  for (const s of series) {
+    ctx.beginPath();
+    s.ys.forEach((y, i) => i ? ctx.lineTo(X(angles[i]), Y(y)) : ctx.moveTo(X(angles[i]), Y(y)));
+    ctx.strokeStyle = s.colour; ctx.lineWidth = s.me ? 2.6 : 1.4;
+    ctx.globalAlpha = s.me ? 1 : 0.65;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // current angle marker
+  ctx.setLineDash([4, 3]); ctx.strokeStyle = "rgba(21,34,41,0.35)";
+  ctx.beginPath(); ctx.moveTo(X(S.alpha), pad.t); ctx.lineTo(X(S.alpha), h - pad.b); ctx.stroke();
+  ctx.setLineDash([]);
+
+  document.getElementById("dragNote").textContent = `at ${S.V.toFixed(1)} m/s`;
+}
+
+/* =====================================================================
+   Comparison strip
+   ===================================================================== */
+function drawCompare() {
+  const cv = document.getElementById("ccmp");
+  const { ctx, w, h } = fit(cv);
+  const items = LIBRARY.map(f => ({ f, s: sectionFor(f, S.alpha, 0.5) })).filter(x => x.s);
+  if (!items.length) return;
+  const pad = 34;
+  let maxChord = 0, maxT = 0;
+  for (const it of items) { maxChord = Math.max(maxChord, it.s.chord); maxT = Math.max(maxT, it.s.tmax); }
+  const scale = Math.min((w - 2 * pad) / maxChord, (h - 2 * pad) / (maxT * 2.4));
+
+  ctx.strokeStyle = "rgba(21,34,41,0.14)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad * 0.5, h / 2); ctx.stroke();
+
+  for (const it of items) {
+    ctx.beginPath();
+    for (let k = 0; k < it.s.N; k++) ctx.lineTo(pad + (it.s.u[k] - it.s.uLE) * scale, h / 2 - it.s.t[k] * scale);
+    for (let k = it.s.N - 1; k >= 0; k--) ctx.lineTo(pad + (it.s.u[k] - it.s.uLE) * scale, h / 2 + it.s.t[k] * scale);
+    ctx.closePath();
+    ctx.strokeStyle = it.f.colour;
+    ctx.lineWidth = it.f.id === S.fuse.id ? 2.2 : 1.3;
+    ctx.globalAlpha = it.f.id === S.fuse.id ? 1 : 0.7;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  text(ctx, "flow →", pad, h - 10, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
+}
+
+/* =====================================================================
+   Section cache + accessors
+   ===================================================================== */
+function sectionFor(fuse, alpha, pos) {
+  const key = JSON.stringify([fuse.L, fuse.h, fuse.w, fuse.section, fuse.wNose, fuse.wTail, fuse.hNose, fuse.hTail, alpha, pos]);
+  if (S.cache.has(key)) return S.cache.get(key);
+  const A = alpha * Math.PI / 180;
+  const r = sliceOffsetRange(fuse, Math.sin(A), Math.cos(A));
+  const d = r.lo + (r.hi - r.lo) * pos;
+  const sec = buildSection(fuse, alpha, d, 181);
+  if (S.cache.size > 400) S.cache.clear();
+  S.cache.set(key, sec);
+  return sec;
+}
+function currentSection() { return sectionFor(S.fuse, S.alpha, S.slicePos); }
+
+/* =====================================================================
+   Metrics and table
+   ===================================================================== */
+function metric(k, v, u) {
+  return `<div class="metric"><div class="k">${k}</div><div class="v">${v}<span class="u"> ${u || ""}</span></div></div>`;
+}
+
+function updateMetrics(sec, cfd) {
+  const el = document.getElementById("secMetrics");
+  const flag = document.getElementById("secFlag");
+  if (!sec) { el.innerHTML = ""; flag.innerHTML = ""; return; }
+  const dr = sectionDrag(sec, S.V);
+  const tot = totalDrag(S.fuse, S.alpha, S.V, 25);
+  el.innerHTML = [
+    metric("Chord", sec.chord.toFixed(0), "mm"),
+    metric("Max thickness", sec.tmax.toFixed(1), "mm"),
+    metric("t / c", (100 * sec.tmax / sec.chord).toFixed(1), "%"),
+    metric("Thickness at", (100 * sec.tmaxAt).toFixed(0), "% chord"),
+    metric("Reynolds", (dr.Re / 1e6).toFixed(2), "×10⁶"),
+    metric("Section Cₔ", dr.Cd.toFixed(4), ""),
+    metric("Fuse drag", tot.D.toFixed(2), "N"),
+    metric("Power", tot.power.toFixed(1), "W")
+  ].join("");
+
+  const bluntLE = sec.tLE / sec.chord, bluntTE = sec.tTE / sec.chord;
+  let msg = "", cls = "ok";
+  if (bluntTE > 0.01 || bluntLE > 0.01) {
+    cls = "warn";
+    const parts = [];
+    if (bluntLE > 0.01) parts.push(`a ${sec.tLE.toFixed(1)} mm blunt leading edge`);
+    if (bluntTE > 0.01) parts.push(`a ${sec.tTE.toFixed(1)} mm blunt base`);
+    msg = `This cut has ${parts.join(" and ")}. Those account for ${(100 * (dr.Cdb + dr.Cdn) / dr.Cd).toFixed(0)}% of the section drag, and no amount of surface finish will recover it.`;
+  } else {
+    msg = `Closed at both ends, so all of the section drag is friction and form. Form factor ${dr.FF.toFixed(2)}.`;
+  }
+  flag.className = "flag " + cls;
+  flag.textContent = msg;
+}
+
+function updateTable() {
+  const tb = document.querySelector("#cmpTable tbody");
+  const rows = [];
+  for (const f of LIBRARY) {
+    const use = (f.id === S.fuse.id) ? S.fuse : f;
+    const sec = sectionFor(use, S.alpha, 0.5);
+    if (!sec) continue;
+    const dr = sectionDrag(sec, S.V);
+    const tot = totalDrag(use, S.alpha, S.V, 21);
+    rows.push({ f, use, sec, dr, tot });
+  }
+  rows.sort((a, b) => a.tot.D - b.tot.D);
+  tb.innerHTML = rows.map(r => `
+    <tr class="${r.f.id === S.fuse.id ? "me" : ""}">
+      <td><span class="swatch" style="background:${r.f.colour}"></span>${r.f.name}</td>
+      <td>${r.use.h} × ${r.use.w}</td>
+      <td>${r.sec.chord.toFixed(0)}</td>
+      <td>${(100 * r.sec.tmax / r.sec.chord).toFixed(1)}%</td>
+      <td>${r.sec.tLE > 0.3 ? r.sec.tLE.toFixed(1) + " mm" : "–"}</td>
+      <td>${r.sec.tTE > 0.3 ? r.sec.tTE.toFixed(1) + " mm" : "–"}</td>
+      <td>${r.dr.Cd.toFixed(4)}</td>
+      <td>${r.tot.D.toFixed(2)} N</td>
+      <td>${r.tot.power.toFixed(1)} W</td>
+    </tr>`).join("");
+  document.getElementById("cmpAngle").textContent = S.alpha.toFixed(1) + "°";
+}
+
+/* =====================================================================
+   Config in / out
+   ===================================================================== */
+function updateConfig() {
+  const f = S.fuse;
+  document.getElementById("cfgOut").value = JSON.stringify({
+    id: f.id, name: f.name, L: f.L, h: f.h, w: f.w,
+    section: f.section,
+    wNose: f.wNose, wTail: f.wTail, hNose: f.hNose, hTail: f.hTail,
+    note: f.note || ""
+  }, null, 2);
+}
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+let cfdPending = null;
+function render() {
+  const sec = currentSection();
+  draw3D();
+  drawSide();
+  drawSection();
+  drawDragCurve();
+  drawCompare();
+  updateTable();
+  updateConfig();
+
+  // section solve is the expensive bit, defer it a frame
+  clearTimeout(cfdPending);
+  updateMetrics(sec, null);
+  cfdPending = setTimeout(() => {
+    const cfd = sec ? runSectionCFD(sec, S.V) : null;
+    drawCp(cfd);
+  }, 30);
+}
+
+/* =====================================================================
+   UI wiring
+   ===================================================================== */
+function syncControls() {
+  const f = S.fuse;
+  document.getElementById("alphaV").textContent = S.alpha.toFixed(1) + "°";
+  document.getElementById("speedV").textContent = S.V.toFixed(1) + " m/s";
+  document.getElementById("slicePosV").textContent = (100 * S.slicePos).toFixed(0) + "%";
+  document.getElementById("LV").textContent = f.L + " mm";
+  document.getElementById("hV").textContent = f.h + " mm";
+  document.getElementById("wV").textContent = f.w + " mm";
+  document.getElementById("L").value = f.L;
+  document.getElementById("h").value = f.h;
+  document.getElementById("w").value = f.w;
+  document.getElementById("presetNote").textContent = f.note || "";
+
+  for (const b of document.querySelectorAll("#secType button"))
+    b.setAttribute("aria-pressed", String(b.dataset.t === f.section.type));
+  document.getElementById("rowN").style.display = f.section.type === "superellipse" ? "" : "none";
+  document.getElementById("rowFillet").style.display = f.section.type === "rect" ? "" : "none";
+  document.getElementById("rowFlip").style.display = f.section.type === "naca" ? "" : "none";
+  if (f.section.type === "superellipse") {
+    document.getElementById("nExp").value = f.section.n;
+    document.getElementById("nExpV").textContent = f.section.n.toFixed(1);
+  }
+  if (f.section.type === "rect") {
+    document.getElementById("fillet").value = f.section.fillet;
+    document.getElementById("filletV").textContent = f.section.fillet.toFixed(1) + " mm";
+  }
+  if (f.section.type === "naca") {
+    for (const b of document.querySelectorAll("#flipSeg button"))
+      b.setAttribute("aria-pressed", String((b.dataset.f === "1") === !!f.section.flip));
+  }
+}
+
+function init() {
+  const sel = document.getElementById("preset");
+  sel.innerHTML = LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
+  sel.value = S.fuse.id;
+  sel.addEventListener("change", () => {
+    const f = LIBRARY.find(x => x.id === sel.value);
+    if (f) { S.fuse = cloneFuse(f); S.cache.clear(); syncControls(); render(); }
+  });
+
+  const cmp = document.getElementById("compareSeg");
+  cmp.innerHTML = LIBRARY.map(f =>
+    `<button data-id="${f.id}"><span class="swatch" style="background:${f.colour}"></span>${f.name.split(",")[0]}</button>`).join("");
+  for (const b of cmp.querySelectorAll("button")) {
+    b.setAttribute("aria-pressed", String(S.compare.has(b.dataset.id)));
+    b.addEventListener("click", () => {
+      if (S.compare.has(b.dataset.id)) S.compare.delete(b.dataset.id); else S.compare.add(b.dataset.id);
+      b.setAttribute("aria-pressed", String(S.compare.has(b.dataset.id)));
+      render();
+    });
+  }
+
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => { fn(parseFloat(el.value)); S.cache.clear(); syncControls(); render(); });
+  };
+  bind("alpha", v => S.alpha = v);
+  bind("speed", v => S.V = v);
+  bind("slicePos", v => S.slicePos = v);
+  bind("L", v => S.fuse.L = v);
+  bind("h", v => S.fuse.h = v);
+  bind("w", v => S.fuse.w = v);
+  bind("nExp", v => { if (S.fuse.section.type === "superellipse") S.fuse.section.n = v; });
+  bind("fillet", v => { if (S.fuse.section.type === "rect") S.fuse.section.fillet = v; });
+
+  for (const b of document.querySelectorAll("#secType button")) {
+    b.addEventListener("click", () => {
+      const t = b.dataset.t;
+      if (t === "superellipse") S.fuse.section = { type: "superellipse", n: 2.4 };
+      if (t === "rect") S.fuse.section = { type: "rect", fillet: 2.5 };
+      if (t === "naca") S.fuse.section = { type: "naca", flip: false };
+      S.cache.clear(); syncControls(); render();
+    });
+  }
+  for (const b of document.querySelectorAll("#flipSeg button")) {
+    b.addEventListener("click", () => {
+      if (S.fuse.section.type === "naca") S.fuse.section.flip = b.dataset.f === "1";
+      S.cache.clear(); syncControls(); render();
+    });
+  }
+
+  // 3D drag to rotate
+  const cv = document.getElementById("c3d");
+  let dragging = false, lx = 0, ly = 0;
+  cv.addEventListener("pointerdown", e => { dragging = true; lx = e.clientX; ly = e.clientY; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    S.az -= (e.clientX - lx) * 0.007;
+    S.el = Math.max(-1.3, Math.min(1.3, S.el + (e.clientY - ly) * 0.006));
+    lx = e.clientX; ly = e.clientY;
+    draw3D();
+  });
+  cv.addEventListener("pointerup", e => { dragging = false; cv.releasePointerCapture(e.pointerId); });
+
+  document.getElementById("cfgCopy").addEventListener("click", () => {
+    const ta = document.getElementById("cfgOut");
+    ta.select(); document.execCommand("copy");
+  });
+  document.getElementById("cfgLoad").addEventListener("click", () => {
+    try {
+      const cfg = JSON.parse(document.getElementById("cfgOut").value);
+      S.fuse = Object.assign(cloneFuse(LIBRARY[0]), cfg);
+      S.cache.clear(); syncControls(); render();
+    } catch (e) { alert("Could not parse that config: " + e.message); }
+  });
+
+  window.addEventListener("resize", () => render());
+  syncControls();
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
