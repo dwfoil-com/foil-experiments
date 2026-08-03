@@ -98,6 +98,106 @@
     height: 0; border: 0; border-top: 2px dashed var(--c); border-radius: 0; width: 15px;
   }
 
+  /* ---- pinned settings, scrolling output ---- */
+  .layout { display: grid; grid-template-columns: 336px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .controls { position: sticky; top: 14px; display: grid; gap: 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
+  .controls::-webkit-scrollbar { width: 8px; }
+  .controls::-webkit-scrollbar-thumb { background: rgba(21,34,41,.16); border-radius: 4px; }
+  .stages { display: grid; gap: 14px; min-width: 0; }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+    .controls { position: static; max-height: none; overflow: visible; }
+  }
+
+  /* ---- stages ---- */
+  .stage-head {
+    width: 100%; display: flex; align-items: center; gap: 13px; text-align: left;
+    padding: 14px 18px; border-radius: 18px; border: 1px solid var(--line);
+    background: var(--paper); box-shadow: var(--shadow); cursor: pointer;
+    font-family: "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 18px; font-weight: 600; color: var(--ink);
+  }
+  .stage-head b {
+    width: 25px; height: 25px; flex: none; border-radius: 999px; display: grid; place-items: center;
+    background: rgba(21,34,41,.08); font-size: 12px; font-weight: 700; font-family: inherit;
+  }
+  .stage-head .cap { flex: 1; }
+  .stage-head .cap small {
+    display: block; font-family: "Avenir Next", sans-serif; font-size: 12px;
+    font-weight: 400; color: var(--muted); margin-top: 2px;
+  }
+  .stage-head .chev { transition: transform .2s; color: var(--muted); font-size: 15px; }
+  .stage[data-open="true"] .stage-head { background: var(--sea); color: #fff; border-color: var(--sea); }
+  .stage[data-open="true"] .stage-head b { background: rgba(255,255,255,.2); color: #fff; }
+  .stage[data-open="true"] .stage-head .cap small { color: rgba(255,255,255,.75); }
+  .stage[data-open="true"] .stage-head .chev { transform: rotate(90deg); color: rgba(255,255,255,.8); }
+  .stage-body { display: grid; gap: 14px; padding-top: 12px; }
+  .stage[data-open="false"] .stage-body { display: none; }
+
+  .stack { display: grid; gap: 13px; }
+  .sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; max-width: 70ch; line-height: 1.5; }
+
+  /* ---- disclosure ---- */
+  .more > summary {
+    cursor: pointer; font-size: 12px; font-weight: 600; color: var(--sea);
+    list-style: none; padding: 7px 0 2px;
+  }
+  .more > summary::-webkit-details-marker { display: none; }
+  .more > summary::before { content: "＋ "; font-weight: 400; }
+  .more[open] > summary::before { content: "－ "; }
+  .more-body { display: grid; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); margin-top: 6px; }
+  .more-body p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ---- slider with an editable value ---- */
+  .ride { display: grid; gap: 10px; }
+  .rr { display: grid; grid-template-columns: 1fr 78px; align-items: center; gap: 4px 10px; }
+  .rr > span:first-child { font-size: 12px; font-weight: 600; }
+  .rr input[type=range] { grid-column: 1 / -1; width: 100%; margin: 0; }
+  .rr .num { display: flex; align-items: center; gap: 4px; justify-self: end; }
+  .rr .num input {
+    width: 52px; font: inherit; font-size: 12.5px; font-weight: 600; padding: 4px 6px;
+    border-radius: 8px; border: 1px solid var(--line); background: #fff; color: inherit;
+    text-align: right; -moz-appearance: textfield;
+  }
+  .rr .num input::-webkit-outer-spin-button,
+  .rr .num input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .rr .num i { font-style: normal; font-size: 10.5px; color: var(--muted); }
+
+  /* ---- the headline angle ---- */
+  .angle-box { background: rgba(45,114,119,.08); border: 1px solid rgba(45,114,119,.18);
+               border-radius: 14px; padding: 12px 14px; display: grid; gap: 9px; }
+  .angle-read { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .angle-read .k { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+  .angle-read .v { font-size: 30px; font-weight: 600; color: var(--sea); font-variant-numeric: tabular-nums; }
+  .angle-note { font-size: 11px; color: var(--muted); line-height: 1.45; }
+  .angle-note button {
+    background: none; border: 0; padding: 0; font: inherit; font-size: 11px;
+    color: var(--sea); text-decoration: underline; cursor: pointer;
+  }
+
+  .inp { display: flex; align-items: center; gap: 6px; }
+  .inp select, .inp input {
+    width: 100%; font: inherit; font-size: 13px; padding: 7px 9px;
+    border-radius: 10px; border: 1px solid var(--line); background: #fff; color: inherit;
+  }
+  .btn[data-busy="true"] { opacity: .65; pointer-events: none; }
+  .spin {
+    display: inline-block; width: 11px; height: 11px; margin-right: 7px; vertical-align: -1px;
+    border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%;
+    animation: sp .6s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .fade-in { animation: fi .45s ease both; }
+  @keyframes fi { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .saved-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }
+  .saved-row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-row button {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 7px; font: inherit; font-size: 10.5px; padding: 2px 7px; cursor: pointer;
+  }
+  .saved-row button.on { background: var(--sea); border-color: var(--sea); color: #fff; }
+
   .prog { display: none; margin-top: 8px; position: relative; height: 16px; }
   .prog i {
     display: block; height: 3px; width: 0; background: var(--sea);
@@ -132,65 +232,49 @@
 <body>
 <div class="page">
 
-  <div class="hero">
+<header class="hero">
     <span class="eyebrow">Foil experiments &middot; fuselage geometry</span>
-    <h1>What the water actually sees when a fuse is at pump angle</h1>
+    <h1>The section a fuselage really presents</h1>
     <p>
-      A fuselage only sits parallel to the flow in a drawing. In flight it is pitched nose-up, and at
-      that angle the cut the water crosses is a long thin aerofoil with roughly six times the chord of
-      the fuse height. Its shape is the fuse's own cross-section outline, stretched along the chord,
-      which makes the corner radii an aerofoil decision rather than a cosmetic one.
+      A fuse only lies parallel to the flow in a drawing. In flight it is pitched nose-up, and the
+      cut the water crosses is a long thin aerofoil with roughly six times the chord of the fuse
+      height. Its shape is the fuse's own cross-section outline, stretched along the chord. That
+      makes the corner radii an aerofoil decision.
     </p>
-    <p>
-      Slide the pump angle and watch the section change. The working is at the bottom.
-    </p>
-  </div>
+  </header>
 
+  
   <div class="layout">
 
-    <!-- ------------------------------------------------------------------ CONTROLS -->
-    <div class="controls">
-      <div class="card stack" style="gap:12px">
-        <div class="row">
-          <label for="preset">Fuse</label>
-          <select id="preset"></select>
-          <div class="hint" id="presetNote"></div>
+    <!-- ================================================ CONTROLS ==== -->
+    <aside class="controls">
+
+      <div class="card stack">
+        <div>
+          <h2>How you ride</h2>
+          <p class="sub">The fuse angle is not a choice. It is whatever the lift equation demands.</p>
+        </div>
+        <div class="ride" id="rideBasic"></div>
+
+        <div class="angle-box">
+          <div class="angle-read">
+            <span class="k">Fuse angle at the crest of your stroke</span>
+            <span class="v" id="angleBig">–</span>
+          </div>
+          <div class="ride" id="angleRow"></div>
+          <div class="angle-note" id="angleNote"></div>
         </div>
 
-        <div class="divider"></div>
+        <details class="more">
+          <summary>Show more detail</summary>
+          <div class="more-body">
+            <div class="ride" id="rideAdvanced"></div>
+          </div>
+        </details>
+      </div>
 
-        <div class="row">
-          <label for="alpha">Pump angle <span class="val" id="alphaV"></span></label>
-          <input type="range" id="alpha" min="0" max="24" step="0.5" value="8">
-          <div class="hint">Between the fuse axis and the oncoming water.</div>
-        </div>
-
-        <div class="row">
-          <label for="speed">Speed <span class="val" id="speedV"></span></label>
-          <input type="range" id="speed" min="2" max="9" step="0.1" value="4.5">
-        </div>
-
-        <div class="row">
-          <label for="slicePos">Slice position <span class="val" id="slicePosV"></span></label>
-          <input type="range" id="slicePos" min="0.02" max="0.98" step="0.005" value="0.5">
-          <div class="hint">Which of the parallel cuts to inspect.</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="row">
-          <label for="L">Length <span class="val" id="LV"></span></label>
-          <input type="range" id="L" min="300" max="900" step="5">
-        </div>
-        <div class="row">
-          <label for="h">Height <span class="val" id="hV"></span></label>
-          <input type="range" id="h" min="10" max="60" step="0.5">
-        </div>
-        <div class="row">
-          <label for="w">Width <span class="val" id="wV"></span></label>
-          <input type="range" id="w" min="6" max="60" step="0.5">
-        </div>
-
+      <div class="card stack">
+        <h2>Your fuse</h2>
         <div class="row">
           <label>Cross-section outline</label>
           <div class="seg" id="secType">
@@ -199,317 +283,351 @@
             <button data-t="naca">aerofoil</button>
           </div>
         </div>
-        <div class="row" id="rowN">
-          <label for="nExp">Superellipse exponent <span class="val" id="nExpV"></span></label>
-          <input type="range" id="nExp" min="1.6" max="10" step="0.1" value="2">
-          <div class="hint">2 is an ellipse, 10 is effectively a rectangle.</div>
-        </div>
-        <div class="row" id="rowFillet">
-          <label for="fillet">Corner radius <span class="val" id="filletV"></span></label>
-          <input type="range" id="fillet" min="0.2" max="12" step="0.1" value="2">
-        </div>
+        <div class="ride" id="shapeRows"></div>
         <div class="row" id="rowFlip">
           <label>Aerofoil nose</label>
           <div class="seg" id="flipSeg">
             <button data-f="0">bottom</button>
             <button data-f="1">top</button>
           </div>
-          <div class="hint">Nose-up means the cut enters through the bottom of the fuse.</div>
         </div>
-      </div>
+        <div class="ride" id="fuseRows"></div>
+        <button class="btn" id="addCompare" style="width:100%">Save to compare</button>
 
-      <div class="card stack" style="gap:12px">
-        <h3>Pump cycle</h3>
-        <div class="row">
-          <label for="pmass">Rider + gear <span class="val" id="pmassV"></span></label>
-          <input type="range" id="pmass" min="50" max="120" step="1" value="80">
-        </div>
-        <div class="row">
-          <label for="pwing">Front wing <span class="val" id="pwingV"></span></label>
-          <input type="range" id="pwing" min="0.05" max="0.25" step="0.005" value="0.09">
-        </div>
-        <div class="row">
-          <label for="pfreq">Pump frequency <span class="val" id="pfreqV"></span></label>
-          <input type="range" id="pfreq" min="0.8" max="3.2" step="0.1" value="2.0">
-        </div>
-        <div class="row">
-          <label for="pheave">Heave amplitude <span class="val" id="pheaveV"></span></label>
-          <input type="range" id="pheave" min="0.01" max="0.20" step="0.005" value="0.08">
-        </div>
-        <div class="row">
-          <label for="pfeather">Feathering <span class="val" id="pfeatherV"></span></label>
-          <input type="range" id="pfeather" min="0" max="0.95" step="0.05" value="0.55">
-        </div>
-      </div>
-    </div>
-
-    <!-- ------------------------------------------------------------------ CONTENT -->
-    <div class="stack">
-
-      <div class="grid2">
-        <div class="card">
-          <div class="canvas-head">
-            <h2>The fuse and the cut</h2>
-            <span class="note">drag to rotate, scroll to zoom</span>
+        <details class="more">
+          <summary>Show more detail</summary>
+          <div class="more-body">
+            <div class="row">
+              <label for="preset">Start from a known shape</label>
+              <span class="inp"><select id="preset"></select></span>
+              <div class="hint" id="presetNote"></div>
+            </div>
+            <div class="ride" id="sliceRow"></div>
           </div>
-          <canvas id="c3d" height="340"></canvas>
-          <div class="legend" id="d3Legend"></div>
-        </div>
-        <div class="card">
-          <div class="canvas-head">
-            <h2>Side view</h2>
-            <span class="note">flow arrives at the pump angle</span>
-          </div>
-          <canvas id="cside" height="340"></canvas>
-          <div class="legend" id="sideLegend"></div>
-        </div>
+        </details>
       </div>
 
-      <div class="card">
+      <div class="card stack" data-for="compare" hidden>
+        <h2>Saved designs</h2>
+        <div id="savedList"></div>
+        <div class="row">
+          <label for="cmpB">Add a reference</label>
+          <span class="inp"><select id="cmpB"></select></span>
+        </div>
+        <button class="btn ghost" id="addRef">Add it</button>
+        <button class="btn ghost" id="matchBase" style="width:100%">Re-size working fuse to the baseline</button>
+        <p class="hint">Gives the working fuse the baseline's vertical stiffness and material, so
+          the drag difference is down to outline alone.</p>
+      </div>
+
+      <div class="card stack" data-for="simulate" hidden>
+        <h2>Simulate</h2>
+        <div class="seg">
+          <button class="btn" id="cfdToggle" aria-pressed="true">pause</button>
+          <button class="btn ghost" id="cfdReset">rebuild</button>
+        </div>
+        <div class="ride" id="simRows"></div>
+      </div>
+    </aside>
+
+    <!-- ================================================== STAGES ==== -->
+    <div class="stages">
+
+      <section class="stage" data-stage="design" data-open="true">
+        <button class="stage-head" type="button">
+          <b>1</b>
+          <span class="cap">Design<small>What your fuse presents to the water</small></span>
+          <span class="chev">&rsaquo;</span>
+        </button>
+        <div class="stage-body">
+
+          <div class="card stack">
+            <div class="canvas-head">
+              <h2>Your fuse and the cut</h2>
+              <span class="note">drag to rotate, scroll to zoom</span>
+            </div>
+            <canvas id="c3d" height="280"></canvas>
+            <div class="legend" id="d3Legend"></div>
+          </div>
+
+          <div class="card stack">
+            <div class="canvas-head">
+              <h2>What the water crosses</h2>
+              <span class="note" id="secNote"></span>
+            </div>
+            <div class="grid2">
+              <div>
+                <canvas id="cside" height="170"></canvas>
+                <div class="legend" id="sideLegend"></div>
+              </div>
+              <div>
+                <canvas id="csec" height="170"></canvas>
+                <div class="legend" id="secLegend"></div>
+              </div>
+            </div>
+            <div class="metrics" id="secMetrics"></div>
+            <div id="secFlag"></div>
+          </div>
+
+          <div class="card stack">
+            <div class="opt-head">
+              <h2 style="flex:1">Best proportions for this outline</h2>
+              <button class="btn" id="optRun">Find them</button>
+            </div>
+            <p class="sub">
+              Keeps the outline you picked and looks only for the height and width that carry the
+              same vertical stiffness and the same material at the least drag.
+            </p>
+            <div id="optOut"></div>
+          </div>
+
+          <div class="card">
+            <details class="more">
+              <summary>Show the angle across your whole speed range</summary>
+              <div class="more-body">
+                <canvas id="dsweep" height="220"></canvas>
+                <div class="legend" id="dsweepLegend"></div>
+                <div class="metrics" id="designMetrics"></div>
+                <div id="designFlag"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="stage" data-stage="compare" data-open="false">
+        <button class="stage-head" type="button">
+          <b>2</b>
+          <span class="cap">Compare<small>Your fuse against a reference, at the same angle</small></span>
+          <span class="chev">&rsaquo;</span>
+        </button>
+        <div class="stage-body">
+          <div class="card stack">
+            <div class="canvas-head">
+              <h2>Yours against a reference</h2>
+              <span class="note" id="cmpAngle"></span>
+            </div>
+            <canvas id="ccmp" height="220"></canvas>
+            <div style="overflow-x:auto">
+              <table id="cmpTable">
+                <thead><tr>
+                  <th>Fuse</th><th>h &times; w</th><th>Chord</th><th>t/c</th>
+                  <th>Blunt LE</th><th>Blunt TE</th><th>Drag</th>
+                  <th>Stiffness</th><th>Area</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div id="cmpVerdict"></div>
+            <details class="more">
+              <summary>Show more detail</summary>
+              <div class="more-body">
+                <div class="canvas-head">
+                  <h3>Drag against angle</h3>
+                  <span class="note" id="dragNote"></span>
+                </div>
+                <canvas id="cdrag" height="230"></canvas>
+                <div class="legend" id="dragLegend"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+  <section class="stage" data-stage="simulate" data-open="false">
+    <button class="stage-head" type="button">
+      <b>3</b>
+      <span class="cap">Simulate<small>Watch the water actually cross it</small></span>
+      <span class="chev">›</span>
+    </button>
+    <div class="stage-body">
+
+      <div class="card stack">
         <div class="canvas-head">
-          <h2>The section the water flows over</h2>
-          <span class="inline-sel">
-            <label for="baseline" style="font-weight:400">compare with</label>
-            <select id="baseline"></select>
-          </span>
+          <h2>Water crossing the section</h2>
+          <span class="note" id="cfdNote"></span>
         </div>
-        <canvas id="csec" height="230"></canvas>
-        <div class="legend" id="secLegend"></div>
-        <div class="metrics" style="margin-top:14px" id="secMetrics"></div>
-        <div id="secFlag"></div>
-
-        <div class="canvas-head" style="margin-top:22px">
-          <h3>Water flowing over it</h3>
-          <span class="seg">
-            <button id="cfdToggle" aria-pressed="true">pause</button>
-            <button id="cfdReset">reset</button>
-          </span>
-        </div>
-        <canvas id="ccfd" height="170"></canvas>
+        <p class="sub">Flow enters at the left. The section sits in the middle. Its wake trails right.</p>
+        <canvas id="ccfd" height="240"></canvas>
         <div class="prog" id="cfdProgress"><i></i><span></span></div>
         <div class="legend" id="cfdLegend"></div>
-        <div class="flag ok" id="cfdVerdict" style="margin-top:10px"></div>
-        <p class="hint" style="margin-top:8px">
-          Lattice Boltzmann, with dashes of dye released upstream. The oncoming flow is tilted
-          briefly to knock the wake off centre, because a symmetric body on a symmetric grid will
-          otherwise sit in the symmetric solution forever even when it is unstable. Whether the
-          oscillation then grows or dies is the answer. It settles, measures the shedding period,
-          records exactly one, and loops those frames, so nothing is solving while you watch.
-          It runs at a Reynolds number around a thousand times below the real thing, so plenty of
-          shapes that are steady here would shed in the water.
-        </p>
-      </div>
+        <div class="flag ok" id="cfdVerdict"></div>
 
-      <div class="card opt">
-        <div class="opt-head">
-          <h2 style="flex:1">Best section for this angle</h2>
-          <button class="btn" id="optRun">Optimise</button>
-          <button class="btn ghost" id="optApply" disabled>Use it</button>
-          <button class="btn ghost" id="optClear" disabled>Clear</button>
-        </div>
-        <p class="hint">Lowest drag at no cost in stiffness or weight. Method at the bottom.</p>
-        <div id="optOut"></div>
-      </div>
+        <details class="more">
+          <summary>Show more detail</summary>
+          <div class="more-body">
+            <p>
+              This is a lattice Boltzmann solver. It does not solve the flow equations directly. It
+              tracks how many notional particles move in each of nine directions on a grid, lets them
+              collide, and lets the flow emerge from that. It handles messy separated wakes without
+              falling over, which is exactly what a blunt fuse produces.
+            </p>
+            <p>
+              The oncoming flow is tilted briefly to knock the wake off centre. A symmetric body on a
+              symmetric grid otherwise sits in the symmetric solution forever, even when that solution
+              is unstable, so nothing would ever shed. Whether the oscillation grows or dies after
+              that nudge is the measurement.
+            </p>
+            <p>
+              It settles the flow, measures the shedding period, records exactly one period and loops
+              those frames. Nothing is solving while you watch, which is why it costs a few seconds up
+              front and nothing after.
+            </p>
+            <p>
+              It runs about a thousand times below the real Reynolds number, so read it for whether
+              the shape stays attached or sheds, never for a number. Plenty of shapes that hold steady
+              here would shed in the water.
+            </p>
 
-      <div class="card">
-        <div class="canvas-head">
-          <h2>What angle does the fuse actually see?</h2>
-          <span class="note" id="pumpNote"></span>
-        </div>
-        <canvas id="cpump" height="220"></canvas>
-        <div class="metrics" style="margin-top:14px" id="pumpMetrics"></div>
-        <div class="flag ok" id="pumpFlag"></div>
-      </div>
-
-      <div class="grid2">
-        <div class="card">
-          <div class="canvas-head">
-            <h2>Pressure and boundary layer</h2>
-            <span class="note">source panel + integral BL</span>
-          </div>
-          <canvas id="ccp" height="260"></canvas>
-          <div class="legend" id="cpLegend"></div>
-          <div id="cfdFlag"></div>
-        </div>
-        <div class="card">
-          <div class="canvas-head">
-            <h2>Fuse drag vs pump angle</h2>
-            <span class="note" id="dragNote"></span>
-          </div>
-          <canvas id="cdrag" height="260"></canvas>
-          <div class="legend" id="dragLegend"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="canvas-head">
-          <h2>All shapes at <span id="cmpAngle"></span></h2>
-          <span class="note">same angle, same scale, sections overlaid on a common chord axis</span>
-        </div>
-        <canvas id="ccmp" height="200"></canvas>
-        <div style="overflow-x:auto; margin-top:14px">
-          <table id="cmpTable">
-            <thead><tr>
-              <th>Fuse</th><th>h &times; w</th><th>Chord</th><th>t/c</th>
-              <th>Blunt LE</th><th>Blunt TE</th><th>C<sub>d</sub></th><th>Drag</th><th>Power</th>
-            </tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card stack" style="gap:14px">
-        <details>
-          <summary>How the slice is computed</summary>
-          <div class="body">
-            <p>
-              Put the fuse axis along <code>x</code> with the nose at <code>x=0</code>, lateral across the fuse
-              as <code>y</code>, and vertical as <code>z</code>. With the fuse pitched nose-up by
-              <code>&alpha;</code>, the oncoming water runs along
-              <code>V = V(cos&alpha;, 0, sin&alpha;)</code>.
-            </p>
-            <p>
-              A streamwise plane is any plane containing that vector. For a fuse that is tall and narrow the flow
-              is essentially two-dimensional in the planes that cut across the thin direction, the same way flow
-              over a mast is two-dimensional in horizontal planes. Those planes are
-              <code>&minus;x&nbsp;sin&alpha; + z&nbsp;cos&alpha; = d</code>. Using chordwise coordinate
-              <code>u = x&nbsp;cos&alpha; + z&nbsp;sin&alpha;</code> and lateral <code>v = y</code>, the
-              half-thickness of the section is
-            </p>
-            <p><code>t(u)/2 = (w(x)/2) &middot; &Phi;(&zeta;)</code>, with
-              <code>&zeta; = 2z/h(x)</code>, <code>x = u&nbsp;cos&alpha; &minus; d&nbsp;sin&alpha;</code>,
-              <code>z = u&nbsp;sin&alpha; + d&nbsp;cos&alpha;</code>.
-            </p>
-            <p>
-              <code>&Phi;</code> is the fuse's own cross-section outline: half-width as a fraction of the maximum,
-              plotted against normalised height. That is the whole point. Because <code>&zeta;</code> runs linearly
-              from &minus;1 to +1 along the cut, <b>the streamwise aerofoil's thickness distribution is the fuse
-              cross-section outline, stretched out along the chord.</b> A square-cornered fuse gives a rectangle.
-              An elliptical fuse gives an ellipse. If you want the flow to see a proper aerofoil, the fuse
-              cross-section has to be that aerofoil, stood on end.
-            </p>
-            <p>
-              The chord follows <code>c &asymp; h / sin&alpha;</code>, so at 10&deg; a 38&nbsp;mm fuse presents a
-              219&nbsp;mm chord. At <code>&alpha; = 0</code> the cut degenerates to the horizontal plan section of
-              chord <code>L</code>, which is the familiar picture, and the model passes through that case
-              continuously.
-            </p>
-          </div>
-        </details>
-
-        <details>
-          <summary>How the drag is estimated</summary>
-          <div class="body">
-            <p>
-              Two independent estimates run side by side, because neither alone deserves much trust.
-            </p>
-            <p>
-              <b>Headline number.</b> Every parallel cut across the body is built, each is given a section drag
-              coefficient from flat-plate skin friction with a Hoerner strut form factor
-              <code>1 + 2(t/c) + 60(t/c)&#8308;</code> applied to the real wetted perimeter, plus separate blunt
-              leading-edge and blunt base terms proportional to the cut-off thickness there. Those are integrated
-              across the body to give the force. Seawater at <code>&nu; = 1.05&times;10&#8315;&#8310;</code>&nbsp;m&sup2;/s,
-              <code>&rho; = 1025</code>&nbsp;kg/m&sup3;.
-            </p>
-            <p>
-              <b>Section solve.</b> The selected cut is run through a constant-strength source panel method for
-              the inviscid surface velocity, then a Thwaites laminar boundary layer, Michel transition, and Head's
-              entrainment method for the turbulent part, with Squire&ndash;Young for the profile drag. This is
-              where separation shows up.
-            </p>
-            <p>
-              Both are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
-              downforce, the front wing's downwash, and all three-dimensional relief, so absolute numbers are
-              indicative. Differences between shapes at the same angle are the useful output.
-            </p>
-          </div>
-        </details>
-
-        <details>
-          <summary>How the optimiser works</summary>
-          <div class="body">
-            <p>
-              Minimising drag on its own is meaningless, because it just drives the fuse to zero
-              width. So two things are held at least as good as the fuse you already have:
-              vertical bending stiffness <code>Iyy = w·h³·I₂/8</code>, which is what resists the
-              tail's downforce, and cross-sectional area <code>A = w·h·I₀/2</code>, standing in for
-              weight. <code>I₀</code> and <code>I₂</code> are integrals of the outline function, so
-              they capture shape as well as size.
-            </p>
-            <p>
-              The stiffness floor sets the thinnest allowable width at any height,
-              <code>w_min(h) = 8·Iyy*/(h³·I₂)</code>, and the area ceiling sets the tallest useful
-              height. Everything between those is a valid design, so each candidate outline is walked
-              across that range rather than assuming the point where the two constraints meet is the
-              answer. Height is capped at 55&nbsp;mm for what the mast and wing joints will take.
-            </p>
-            <p>
-              <b>Read the margin, not the winner.</b> The objective only sees thickness ratio, wetted
-              area and how blunt the ends are. It separates clean outlines from blunt ones decisively
-              and can barely tell two clean outlines apart. A plain ellipse currently wins from every
-              starting point with a designed aerofoil section within about 1%, and that 1% is inside
-              the model's noise rather than a result. The large margins against square-edged bars are
-              real.
-            </p>
-            <p>
-              Lateral stiffness is reported but not constrained. A tall thin blade gives it up
-              quickly, and the optimiser is free to spend it.
-            </p>
-          </div>
-        </details>
-
-        <details>
-          <summary>What the pump model assumes</summary>
-          <div class="body">
-            <p>
-              The fuse angle relative to the water is <code>θ &minus; γ</code>, which is also the
-              front wing's angle of attack. So it is not a free choice: it is whatever the lift
-              equation demands at your speed and loading. That is the whole point. Slow, high-lift
-              pumping is exactly where the fuse is worst aligned.
-            </p>
-            <p>
-              Trim comes from <code>Cl = 2W/(ρSV²)</code> with a lift slope of
-              <code>2π/(1 + 2/AR)</code>, clamped at a 13&deg; stall. Cross-checked against
-              <code>compute_trim_angle</code> in
-              <code>foil-rl-pump/python-rl/foil_env/foil_physics.py</code> in this repo, which solves
-              the full wing, stabiliser and mast balance and gives 8.95&deg; at 3.5&nbsp;m/s and
-              5.44&deg; at 4.5&nbsp;m/s. This reimplements the wing term only and lands within 2.5%.
-            </p>
-            <p>
-              On top of trim, the pump swings the flight path by <code>atan(A·ω/V)</code>, which is
-              large: 80&nbsp;mm of heave at 2&nbsp;Hz and 4.5&nbsp;m/s is &plusmn;12.6&deg;. The rider
-              feathers most of that out by pitching with the stroke. The feathering slider is that
-              fraction, and it is the one number here with no independent source behind it.
-            </p>
-            <p>
-              The heave is assumed sinusoidal and the feathering constant through the stroke. Driving
-              this from a trained policy rollout would be more honest than either assumption.
-            </p>
-          </div>
-        </details>
-
-        <details>
-          <summary>Add a fuse</summary>
-          <div class="body">
-            <p>
-              The current settings as a config block. Drop it into <code>fuses/</code> as a
-              <code>.json</code> file and open a pull request, or paste one in below to load it.
-            </p>
-            <textarea id="cfgOut" spellcheck="false"></textarea>
-            <div class="seg">
-              <button class="btn" id="cfgLoad">Load pasted config</button>
-              <button class="btn ghost" id="cfgCopy">Copy</button>
+            <div class="canvas-head" style="margin-top:14px">
+              <h3>Pressure and boundary layer</h3>
+              <span class="note">source panel, then Thwaites and Head</span>
             </div>
-            <p>
-              The bundled shapes are archetypes for exploring the geometry, not measured brand geometry. If you
-              have callipers and a real fuse, measured numbers are much more interesting than my guesses.
-            </p>
+            <canvas id="ccp" height="230"></canvas>
+            <div class="legend" id="cpLegend"></div>
+            <div id="cfdFlag"></div>
           </div>
         </details>
       </div>
+    </div>
+  </section>
+
 
     </div>
   </div>
+
+  <!-- ===================================================== WORKING ==== -->
+  <div class="card stack" style="gap:14px">
+    <details>
+      <summary>How the slice is computed</summary>
+      <div class="body">
+        <p>
+          Put the fuse axis along <code>x</code> with the nose at <code>x=0</code>, lateral across
+          the fuse as <code>y</code>, vertical as <code>z</code>. With the fuse pitched nose-up by
+          <code>&alpha;</code>, the water runs along <code>V(cos&alpha;, 0, sin&alpha;)</code>.
+        </p>
+        <p>
+          A streamwise plane contains that vector. For a tall narrow fuse the flow is essentially
+          two-dimensional in the planes cutting across the thin direction, the same way flow over a
+          mast is two-dimensional in horizontal planes. Those planes are
+          <code>&minus;x&nbsp;sin&alpha; + z&nbsp;cos&alpha; = d</code>. With
+          <code>u = x&nbsp;cos&alpha; + z&nbsp;sin&alpha;</code> and <code>v = y</code>:
+        </p>
+        <p><code>t(u)/2 = (w(x)/2) &middot; &Phi;(&zeta;)</code>, where
+          <code>&zeta; = 2z/h(x)</code>.</p>
+        <p>
+          <code>&Phi;</code> is the fuse's cross-section outline: half-width as a fraction of the
+          maximum, against normalised height. Because <code>&zeta;</code> runs linearly from
+          &minus;1 to +1 along the cut, the streamwise thickness distribution is that outline
+          stretched along the chord. A square-cornered fuse gives a rectangle. An elliptical fuse
+          gives an ellipse. For the water to see an aerofoil, the cross-section has to be that
+          aerofoil, stood on end.
+        </p>
+        <p>
+          Chord follows <code>c &asymp; h / sin&alpha;</code>. At <code>&alpha; = 0</code> the cut
+          becomes the plan section of chord <code>L</code>, so the model passes through the familiar
+          picture continuously.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Where the design angle comes from</summary>
+      <div class="body">
+        <p>
+          The fuse angle relative to the water is <code>&theta; &minus; &gamma;</code>, which is also
+          the front wing's angle of attack. It follows from <code>Cl = 2W/(&rho;SV&sup2;)</code> with
+          a lift slope of <code>2&pi;/(1 + 2/AR)</code>, clamped at a 13&deg; stall.
+        </p>
+        <p>
+          Checked against <code>compute_trim_angle</code> in
+          <code>foil-rl-pump/python-rl/foil_env/foil_physics.py</code> in this repo, which solves the
+          full wing, stabiliser and mast balance: it gives 8.95&deg; at 7.8&nbsp;mph and 5.44&deg;
+          at 10.1&nbsp;mph for its own rig (3.5 and 4.5&nbsp;m/s in the source). This reimplements
+          the wing term only and lands within 2.5%.
+        </p>
+        <p>
+          On top of trim, the pump swings the flight path by <code>atan(A&middot;&omega;/V)</code>.
+          80&nbsp;mm of heave at 2&nbsp;Hz and 10&nbsp;mph is &plusmn;12.6&deg;, most of which the
+          rider feathers out. What is left is the swing the fuse works through, and the crest of that
+          swing is the design angle.
+        </p>
+        <p>
+          Two things pull opposite ways across the speed range. Misalignment is worst at the slow
+          end, where lift demand forces a high angle. Absolute drag is largest at the fast end, where
+          dynamic pressure dominates. Shape matters most where misalignment is worst, so the slow end
+          sets the section.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>How the drag is estimated</summary>
+      <div class="body">
+        <p>Two independent estimates run side by side, because neither alone deserves much trust.</p>
+        <p>
+          <b>Headline number.</b> Every parallel cut is built and given a section drag coefficient
+          from flat-plate friction with a Hoerner strut form factor
+          <code>1 + 2(t/c) + 60(t/c)&#8308;</code> on the real wetted perimeter, plus separate blunt
+          leading-edge and blunt base terms. Those integrate across the body.
+          <code>&nu; = 1.05&times;10&#8315;&#8310;</code>&nbsp;m&sup2;/s,
+          <code>&rho; = 1025</code>&nbsp;kg/m&sup3;.
+        </p>
+        <p>
+          <b>Section solve.</b> The selected cut goes through a constant-strength source panel
+          method, then Thwaites, Michel transition, Head's method and Squire&ndash;Young. Separation
+          shows up here.
+        </p>
+        <p>
+          <b>The weakest part.</b> On a blunt fuse most of the drag comes from the two blunt-end
+          terms, which are hand-set constants. A strip model also treats the flat top and bottom as
+          bluff bases, when a long flat surface at 8&deg; behaves more like a plate at incidence.
+          Direction is solid. Magnitude is an upper bound.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>How the proportions are chosen</summary>
+      <div class="body">
+        <p>
+          Minimising drag alone drives the fuse to zero width, so two things are held at least as
+          good as what you have: vertical bending stiffness
+          <code>Iyy = w&middot;h&sup3;&middot;I&#8322;/8</code>, which resists the tail's downforce,
+          and cross-sectional area <code>A = w&middot;h&middot;I&#8320;/2</code> as a weight proxy.
+          <code>I&#8320;</code> and <code>I&#8322;</code> are integrals of the outline, so they
+          capture shape as well as size.
+        </p>
+        <p>
+          The stiffness floor sets the thinnest width at any height,
+          <code>w_min(h) = 8&middot;Iyy*/(h&sup3;&middot;I&#8322;)</code>, and the area ceiling sets
+          the tallest height. Everything between is valid, so the search walks that range with your
+          outline held fixed. Height is capped at 55&nbsp;mm for the mast and wing joints. Lateral
+          stiffness is reported but not constrained, and a tall thin blade gives it up quickly.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Add a fuse</summary>
+      <div class="body">
+        <p>
+          The current settings as a config block. Drop it into <code>fuses/</code> as a
+          <code>.json</code> file and open a pull request, or paste one in to load it.
+        </p>
+        <textarea id="cfgOut" spellcheck="false"></textarea>
+        <div class="seg">
+          <button class="btn" id="cfgLoad">Load pasted config</button>
+          <button class="btn ghost" id="cfgCopy">Copy</button>
+        </div>
+        <p>
+          The bundled shapes are archetypes for exploring geometry, not measured brand geometry. If
+          you have callipers and a real fuse, measured numbers beat my guesses.
+        </p>
+      </div>
+    </details>
+  </div>
+
 </div>
 
 <script>
@@ -523,6 +641,10 @@ const RHO = 1025;      // seawater density, kg/m^3
 const K_BASE = 0.60;   // blunt base drag coefficient on base area
 const K_NOSE = 0.30;   // blunt leading edge penalty on frontal area
 const NACA_PEAK = 0.09966;
+// Speeds are shown in mph. Everything under the hood stays SI.
+const MPH = 2.236936;
+const mph = v => v * MPH;
+const fromMph = v => v / MPH;
 
 const PALETTE = ["#2d7277", "#bd6b3f", "#4a6f9c", "#8a7a3f", "#7a4a6f", "#3f8a5c"];
 
@@ -1021,13 +1143,15 @@ function cloneFuse(f) { return JSON.parse(JSON.stringify(f)); }
    State
    ===================================================================== */
 const S = {
+  tab: "design",
   fuse: cloneFuse(LIBRARY.find(f => f.id === "typical")),
-  alpha: 8,
-  V: 4.5,
-  slicePos: 0.5,
-  baseline: "rod-round",
+  alpha: 8, V: 4.5, slicePos: 0.5,
+  vmin: 4.0, vmax: 6.5,
+  designV: 4.0, designAngle: 8,
+  cmpB: "rod-round", saved: [], baseline: 0,
+  angleOverride: null, cfdSpeed: 1,
   az: -0.62, el: 0.30, zoom: 1,
-  hMax: 55,             // tallest fuse the mast and wing joints will take, mm
+  hMax: 55,
   pump: { mass: 80, S: 0.09, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
   optimum: null,
   cache: new Map()
@@ -1087,6 +1211,9 @@ function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16) {
   if (!(I0 > 1e-9) || !(I2 > 1e-9)) return [];
   const hMin = 2 * Math.sqrt((iyyTarget * I0) / (areaTarget * I2));
   if (!isFinite(hMin) || hMin <= 4) return [];
+  // If even the shortest feasible height breaks the joint limit there is no legal
+  // answer. Return it anyway so the search is not empty, but say so.
+  const over = hMin > hMax;
   const hi = Math.max(hMin, Math.min(hMax, hMin * 2.2));
   const out = [];
   for (let k = 0; k < n; k++) {
@@ -1094,7 +1221,7 @@ function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16) {
     const w = 8 * iyyTarget / (h * h * h * I2);
     if (!(w > 1.5) || w > h * 3) continue;
     if (w * h * I0 / 2 > areaTarget * 1.0001) continue;
-    out.push({ h, w, atLimit: Math.abs(h - hMax) < 1e-6 });
+    out.push({ h, w, atLimit: Math.abs(h - hMax) < 1e-6, over });
   }
   return out;
 }
@@ -1108,29 +1235,11 @@ function candidateSections() {
   return out;
 }
 
-function optimise(alphaDeg, V) {
-  const base = sectionProps(S.fuse);
-  const results = [];
-  for (const sd of candidateSections()) {
-    for (const size of feasibleHeights(sd, base.area, base.Iyy, S.hMax)) {
-      const cand = Object.assign(cloneFuse(S.fuse),
-        { section: sd, h: +size.h.toFixed(2), w: +size.w.toFixed(2) });
-      const D = totalDrag(cand, alphaDeg, V, 11).D;
-      if (!isFinite(D)) continue;
-      results.push({ fuse: cand, D, capped: size.atLimit, props: sectionProps(cand) });
-    }
-  }
-  results.sort((a, b) => a.D - b.D);
-  // refine the winner at full resolution so the headline number matches the rest of the page
-  if (results[0]) results[0].D = totalDrag(results[0].fuse, alphaDeg, V, 25).D;
-  return { best: results[0] || null, all: results, base };
-}
-
 /* =====================================================================
    Pump cycle
    The fuse angle relative to the water is theta - gamma, which is also the
    wing's angle of attack. Trim comes straight from the lift equation; the
-   pump adds a flight-path swing that the rider only partly feathers out.
+   pump adds a flight-path swing the rider only partly feathers out.
    Cross-checked against foil-rl-pump/python-rl/foil_env/foil_physics.py,
    which gives 8.95 deg at 3.5 m/s and 5.44 deg at 4.5 m/s for its rig.
    ===================================================================== */
@@ -1139,8 +1248,7 @@ function liftSlope(AR) { return 2 * Math.PI / (1 + 2 / AR); }
 function trimAngle(V, p) {
   const W = p.mass * 9.81;
   const Cl = 2 * W / (RHO * p.S * V * V);
-  const a = liftSlope(p.AR);
-  return Math.min(13, Cl / a * 180 / Math.PI);   // clamp at stall
+  return Math.min(13, Cl / liftSlope(p.AR) * 180 / Math.PI);   // clamp at stall
 }
 
 function pumpTrace(V, p, n = 121) {
@@ -1158,14 +1266,56 @@ function pumpTrace(V, p, n = 121) {
            min: Math.min(...al), max: Math.max(...al) };
 }
 
-function cycleDrag(fuse, V, p) {
-  const tr = pumpTrace(V, p, 25);
-  let sum = 0, wsum = 0, angleWeighted = 0;
-  for (const a of tr.alpha) {
-    const D = totalDrag(fuse, Math.abs(a), V, 13).D;
-    sum += D; wsum += 1; angleWeighted += D * Math.abs(a);
+// Keeps the chosen outline. Swapping families answered a question nobody asked:
+// what you want to know is whether your own shape is the right size.
+function optimise(alphaDeg, V, target) {
+  const base = target || sectionProps(S.fuse);
+  const sd = S.fuse.section;
+  const results = [];
+  for (const size of feasibleHeights(sd, base.area, base.Iyy, S.hMax, 26)) {
+    const cand = Object.assign(cloneFuse(S.fuse),
+      { h: +size.h.toFixed(2), w: +size.w.toFixed(2) });
+    const D = totalDrag(cand, alphaDeg, V, 11).D;
+    if (!isFinite(D)) continue;
+    results.push({ fuse: cand, D, capped: size.atLimit, over: size.over, props: sectionProps(cand) });
   }
-  return { mean: sum / wsum, effAngle: angleWeighted / sum, trace: tr };
+  results.sort((a, b) => a.D - b.D);
+  if (results[0]) results[0].D = totalDrag(results[0].fuse, alphaDeg, V, 25).D;
+  return { best: results[0] || null, all: results, base };
+}
+
+/* =====================================================================
+   Design point
+   The angle worth designing for is the one where the fuse costs the most,
+   which is the top of the pump stroke. Angle rises as speed falls, dynamic
+   pressure rises as speed climbs, so the worst case sits somewhere in the
+   middle and has to be found by sweeping.
+   ===================================================================== */
+function speedSweep(fuse, p, vmin, vmax, n = 26) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const V = vmin + (vmax - vmin) * i / (n - 1);
+    // 5 samples, not 3: sin at 0, pi, 2pi is zero three times over and the swing
+    // disappears. 5 lands exactly on the crest and the trough.
+    const tr = pumpTrace(V, p, 5);
+    out.push({
+      V,
+      trim: tr.trim,
+      peak: tr.max,
+      low: tr.min,
+      stalled: tr.trim >= 12.99,
+      Dpeak: totalDrag(fuse, Math.abs(tr.max), V, 13).D,
+      Dtrim: totalDrag(fuse, Math.abs(tr.trim), V, 13).D
+    });
+  }
+  return out;
+}
+
+function designPoint(fuse, p, vmin, vmax) {
+  const sweep = speedSweep(fuse, p, vmin, vmax);
+  let at = sweep[0];
+  for (const s of sweep) if (s.Dpeak > at.Dpeak) at = s;
+  return { sweep, at };
 }
 
 /* =====================================================================
@@ -1418,11 +1568,6 @@ function drawSection() {
 
   const pad = 40;
   const layers = [];
-  const baseF = LIBRARY.find(x => x.id === S.baseline);
-  if (baseF && baseF.id !== S.fuse.id) {
-    const s2 = sectionFor(baseF, S.alpha, S.slicePos);
-    if (s2) layers.push({ s: s2, colour: "#8b959a", label: baseF.name, dash: [5, 4] });
-  }
   if (S.optimum) {
     const s3 = sectionFor(S.optimum.fuse, S.alpha, S.slicePos);
     if (s3) layers.push({ s: s3, colour: "#bd6b3f", label: "optimised", dash: [] });
@@ -1549,21 +1694,15 @@ function drawDragCurve() {
   const angles = [];
   for (let a = 0; a <= 24; a += 1.5) angles.push(a);
 
+  const A = S.fuse, B = S.saved.length ? S.saved[0].fuse : null;
   const series = [];
   for (const lib of LIBRARY) {
-    if (lib.id === S.fuse.id || lib.id === S.baseline) continue;
-    series.push({ colour: "rgba(21,34,41,0.18)", width: 1, ys: angles.map(a => totalDrag(lib, a, S.V, 13).D) });
+    if (lib.id === S.fuse.id) continue;
+    series.push({ colour: "rgba(21,34,41,0.16)", width: 1, ys: angles.map(a => totalDrag(lib, a, S.V, 13).D) });
   }
-  const baseF = LIBRARY.find(x => x.id === S.baseline);
-  if (baseF && baseF.id !== S.fuse.id) {
-    series.push({ colour: "#8b959a", width: 1.8, dash: [5, 4],
-                  ys: angles.map(a => totalDrag(baseF, a, S.V, 13).D) });
-  }
-  if (S.optimum) {
-    series.push({ colour: "#bd6b3f", width: 2,
-                  ys: angles.map(a => totalDrag(S.optimum.fuse, a, S.V, 13).D) });
-  }
-  series.push({ colour: "#2d7277", width: 2.8, ys: angles.map(a => totalDrag(S.fuse, a, S.V, 13).D) });
+  if (B) series.push({ colour: "#bd6b3f", width: 2.2, dash: [5, 4],
+                       ys: angles.map(a => totalDrag(B, a, S.V, 13).D) });
+  if (A) series.push({ colour: "#2d7277", width: 2.8, ys: angles.map(a => totalDrag(A, a, S.V, 13).D) });
 
   let dMax = 0;
   for (const s of series) for (const y of s.ys) dMax = Math.max(dMax, y);
@@ -1603,13 +1742,12 @@ function drawDragCurve() {
   ctx.beginPath(); ctx.moveTo(X(S.alpha), pad.t); ctx.lineTo(X(S.alpha), h - pad.b); ctx.stroke();
   ctx.setLineDash([]);
 
-  document.getElementById("dragNote").textContent = `at ${S.V.toFixed(1)} m/s`;
+  document.getElementById("dragNote").textContent = `at ${mph(S.V).toFixed(1)} mph`;
   legend("dragLegend", [
-    { colour: "#2d7277", label: S.fuse.name },
-    ...(baseF && baseF.id !== S.fuse.id ? [{ colour: "#8b959a", dash: true, label: baseF.name }] : []),
-    ...(S.optimum ? [{ colour: "#bd6b3f", label: "optimised" }] : []),
+    { colour: "#2d7277", label: "working" },
+    ...(B ? [{ colour: "#bd6b3f", dash: true, label: S.saved[0].name }] : []),
     { colour: "rgba(21,34,41,0.28)", label: "the rest of the library" },
-    { colour: "rgba(45,114,119,0.35)", fill: "rgba(45,114,119,0.18)", label: "angle range of the pump cycle" }
+    { colour: "rgba(45,114,119,0.35)", fill: "rgba(45,114,119,0.18)", label: "where the pump stroke runs" }
   ]);
 }
 
@@ -1621,7 +1759,7 @@ function drawDragCurve() {
    whether the shape sheds, not for numbers.
    ===================================================================== */
 const LBM = (() => {
-  const NX = 200, NY = 68, Q = 9;
+  const NX = 248, NY = 84, Q = 9;
   const ex = [0, 1, 0, -1, 0, 1, -1, -1, 1];
   const ey = [0, 0, 1, 0, -1, 1, 1, -1, -1];
   const wq = [4 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 36, 1 / 36, 1 / 36, 1 / 36];
@@ -1784,7 +1922,7 @@ const LBM = (() => {
     // frozen picture; dashes keep moving along the streamlines and show you the speed
     // field even when nothing is shedding.
     for (let j = 0; j < NY; j++) {
-      const band = j % 9;
+      const band = j % 6;
       const v = (inkOn && (band === 0 || band === 1)) ? 1 : 0;
       for (let i = 1; i <= 3; i++) dye[j * NX + i] = v;
     }
@@ -1876,6 +2014,15 @@ function blitCFD(img) {
     { align: "center", colour: "#8c4823", font: "600 12px 'Avenir Next', sans-serif" });
 }
 
+function setCfdVerdict() {
+  const el = document.getElementById("cfdVerdict");
+  if (!el) return;
+  el.className = "flag " + (Bake.sheds ? "warn" : "ok");
+  el.textContent = Bake.sheds
+    ? "Self-sustaining shedding. Knocked off centre, the wake keeps oscillating on its own."
+    : "Steady at this Reynolds number. Knocked off centre, the wake settles back and stays put.";
+}
+
 function drawCFD() { blitCFD(lbmFrame()); }
 
 /* =====================================================================
@@ -1891,7 +2038,7 @@ const Bake = {
   frames: [], idx: 0,
   step: 0, signal: [], period: 0, loop: 0, pulses: 1, every: 1, target: 0,
   sheds: false,
-  WARM: 3600, PROBE_TAIL: 1200, FILL: 1300, FRAMES: 84, DYE_DT: 3,
+  WARM: 2500, PROBE_TAIL: 1000, FILL: 1600, FRAMES: 130, DYE_DT: 3,
   BUDGET_MS: 13        // work per animation frame, to keep the page responsive
 };
 
@@ -1933,10 +2080,10 @@ function bakePlan() {
   Bake.sheds = Bake.period > 0 && amp > 3e-3;
   if (!Bake.sheds) Bake.period = 0;
   // steady flow loops on the dye alone, so pick a length that gives sensible dashes
-  Bake.loop = Bake.sheds ? Bake.period : 190;
-  Bake.pulses = Math.max(1, Math.round(Bake.loop * LBM.U0 / 24));
+  Bake.loop = Bake.sheds ? Bake.period : 260;
+  Bake.pulses = Math.max(1, Math.round(Bake.loop * LBM.U0 / 20));
   Bake.every = Math.max(1, Math.round(Bake.loop / Bake.FRAMES));
-  Bake.target = Math.max(8, Math.round(Bake.loop / Bake.every));
+  Bake.target = Math.max(12, Math.round(Bake.loop / Bake.every));
 }
 
 function detectPeriod(sig) {
@@ -1996,7 +2143,9 @@ function bakeTick() {
       LBM.advectDye(Bake.every, inkOnAt(Bake.step));
       Bake.step += Bake.every;
       Bake.frames.push(lbmFrame());
-      if (Bake.frames.length >= Bake.target) { Bake.state = "play"; Bake.idx = 0; break; }
+      if (Bake.frames.length >= Bake.target) {
+        Bake.state = "play"; Bake.idx = 0; setCfdVerdict(); break;
+      }
     }
     if (LBM.blown) break;
   }
@@ -2011,137 +2160,336 @@ function bakeTick() {
     el.querySelector("span").textContent =
       Bake.state === "record" ? "recording a loop" : "settling the flow";
   }
-  if (Bake.state !== "record") blitCFD(lbmFrame());
+  // Show the flow while it settles, throttled: a blank canvas for several seconds
+  // reads as broken, and rebuilding the frame every tick would eat the bake budget.
+  const nowMs = performance.now();
+  if (Bake.state !== "record" && nowMs - bakePaint > 120) { bakePaint = nowMs; blitCFD(lbmFrame()); }
 }
 
 let cfdRAF = null, cfdOn = true, cfdInView = false, cfdPageVisible = !document.hidden;
 let cfdLastDraw = 0;
+const CFD_FRAME_BASE = 33;        // 30 fps; the speed control slows it from here
 function cfdLoop() {
   cfdRAF = requestAnimationFrame(cfdLoop);
   if (!cfdInView || !cfdPageVisible || !LBM.ready) return;
+  // Pause means pause. Baking used to carry on underneath, which both ignored the
+  // button and replayed the settling transient every time anything re-rendered.
+  if (!cfdOn) return;
   if (Bake.state !== "play") { bakeTick(); return; }
-  if (!cfdOn || !Bake.frames.length) return;
+  if (!Bake.frames.length) return;
   const now = performance.now();
-  if (now - cfdLastDraw < 33) return;              // 30 fps is plenty for a loop
+  if (now - cfdLastDraw < CFD_FRAME_BASE / S.cfdSpeed) return;
   cfdLastDraw = now;
   blitCFD(Bake.frames[Bake.idx]);
   Bake.idx = (Bake.idx + 1) % Bake.frames.length;
-  const el = document.getElementById("cfdVerdict");
-  if (el) el.textContent = Bake.sheds
-    ? `Self-sustaining shedding. Nudged off centre, the wake keeps oscillating on its own.`
-    : `Steady at this Reynolds number. Nudged off centre, the wake settles back and stays put.`;
 }
 
-let cfdRebuild = null;
-function scheduleCFD() {
+// A bake is expensive and the flow only depends on the section, so re-run it when
+// the section actually changes. Re-baking on every render restarted the animation
+// constantly, which read as the whole thing flashing.
+let cfdRebuild = null, cfdSig = null, bakePaint = 0;
+function sectionSignature() {
+  const f = S.fuse;
+  return JSON.stringify([f.L, f.h, f.w, f.section, S.alpha, S.slicePos]);
+}
+function scheduleCFD(force) {
+  const sig = sectionSignature();
+  if (!force && sig === cfdSig && Bake.frames.length) return;
+  cfdSig = sig;
   clearTimeout(cfdRebuild);
   cfdRebuild = setTimeout(() => {
     const sec = currentSection();
     if (sec) bakeStart(sec);
-  }, 600);
+  }, 450);
 }
 
 /* =====================================================================
-   Pump cycle trace
+   Lookups and section cache
    ===================================================================== */
-function drawPump() {
-  const cv = document.getElementById("cpump");
-  const { ctx, w, h } = fit(cv);
-  const tr = pumpTrace(S.V, S.pump, 181);
-  const pad = { l: 44, r: 12, t: 14, b: 26 };
-  const aLo = Math.min(0, tr.min) - 1, aHi = Math.max(tr.max, 2) + 1;
-  const X = t => pad.l + t * (w - pad.l - pad.r);
-  const Y = a => h - pad.b - (a - aLo) / (aHi - aLo) * (h - pad.t - pad.b);
-
-  ctx.strokeStyle = "rgba(21,34,41,0.1)"; ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const a = aLo + (aHi - aLo) * i / 4;
-    ctx.beginPath(); ctx.moveTo(pad.l, Y(a)); ctx.lineTo(w - pad.r, Y(a)); ctx.stroke();
-    text(ctx, a.toFixed(0) + "°", pad.l - 6, Y(a) + 3, { align: "right" });
-  }
-
-  // zero line, where the fuse is aligned with the flow
-  if (aLo < 0) {
-    ctx.strokeStyle = "rgba(21,34,41,0.3)"; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(w - pad.r, Y(0)); ctx.stroke();
-  }
-
-  // trim line
-  ctx.save();
-  ctx.setLineDash([5, 4]); ctx.strokeStyle = "#8b959a"; ctx.lineWidth = 1.4;
-  ctx.beginPath(); ctx.moveTo(pad.l, Y(tr.trim)); ctx.lineTo(w - pad.r, Y(tr.trim)); ctx.stroke();
-  ctx.restore();
-  text(ctx, `trim ${tr.trim.toFixed(1)}°`, w - pad.r - 4, Y(tr.trim) - 5, { align: "right", colour: "#6b7579" });
-
-  ctx.beginPath();
-  tr.alpha.forEach((a, i) => i ? ctx.lineTo(X(tr.t[i]), Y(a)) : ctx.moveTo(X(tr.t[i]), Y(a)));
-  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 2.4; ctx.stroke();
-
-  // where the main slider currently sits
-  ctx.save();
-  ctx.setLineDash([3, 3]); ctx.strokeStyle = "#bd6b3f"; ctx.lineWidth = 1.3;
-  ctx.beginPath(); ctx.moveTo(pad.l, Y(S.alpha)); ctx.lineTo(w - pad.r, Y(S.alpha)); ctx.stroke();
-  ctx.restore();
-  text(ctx, "slider", pad.l + 4, Y(S.alpha) - 5, { colour: "#bd6b3f" });
-
-  text(ctx, "one pump cycle", pad.l, h - 9);
-  text(ctx, "fuse angle", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
+function fuseById(id) {
+  if (!id) return null;
+  if (S.fuse && id === S.fuse.id) return S.fuse;
+  if (S.optimum && id === "optimised") return S.optimum.fuse;
+  return LIBRARY.find(f => f.id === id) || null;
 }
 
-/* =====================================================================
-   Comparison strip
-   ===================================================================== */
-function drawCompare() {
-  const cv = document.getElementById("ccmp");
-  const { ctx, w, h } = fit(cv);
-  const items = LIBRARY.map(f => ({ f, s: sectionFor(f, S.alpha, 0.5) })).filter(x => x.s);
-  if (!items.length) return;
-  const pad = 34;
-  let maxChord = 0, maxT = 0;
-  for (const it of items) { maxChord = Math.max(maxChord, it.s.chord); maxT = Math.max(maxT, it.s.tmax); }
-  const scale = Math.min((w - 2 * pad) / maxChord, (h - 2 * pad) / (maxT * 2.4));
-
-  ctx.strokeStyle = "rgba(21,34,41,0.14)"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad * 0.5, h / 2); ctx.stroke();
-
-  for (const it of items) {
-    ctx.beginPath();
-    for (let k = 0; k < it.s.N; k++) ctx.lineTo(pad + (it.s.u[k] - it.s.uLE) * scale, h / 2 - it.s.t[k] * scale);
-    for (let k = it.s.N - 1; k >= 0; k--) ctx.lineTo(pad + (it.s.u[k] - it.s.uLE) * scale, h / 2 + it.s.t[k] * scale);
-    ctx.closePath();
-    ctx.strokeStyle = it.f.colour;
-    ctx.lineWidth = it.f.id === S.fuse.id ? 2.2 : 1.3;
-    ctx.globalAlpha = it.f.id === S.fuse.id ? 1 : 0.7;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-  text(ctx, "flow →", pad, h - 10, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
-}
-
-/* =====================================================================
-   Section cache + accessors
-   ===================================================================== */
 function sectionFor(fuse, alpha, pos) {
-  const key = JSON.stringify([fuse.L, fuse.h, fuse.w, fuse.section, fuse.wNose, fuse.wTail, fuse.hNose, fuse.hTail, alpha, pos]);
+  const key = JSON.stringify([fuse.L, fuse.h, fuse.w, fuse.section,
+    fuse.wNose, fuse.wTail, fuse.hNose, fuse.hTail, alpha, pos]);
   if (S.cache.has(key)) return S.cache.get(key);
   const A = alpha * Math.PI / 180;
   const r = sliceOffsetRange(fuse, Math.sin(A), Math.cos(A));
-  const d = r.lo + (r.hi - r.lo) * pos;
-  const sec = buildSection(fuse, alpha, d, 181);
+  const sec = buildSection(fuse, alpha, r.lo + (r.hi - r.lo) * pos, 181);
   if (S.cache.size > 400) S.cache.clear();
   S.cache.set(key, sec);
   return sec;
 }
 function currentSection() { return sectionFor(S.fuse, S.alpha, S.slicePos); }
 
-/* =====================================================================
-   Metrics and table
-   ===================================================================== */
 function metric(k, v, u) {
   return `<div class="metric"><div class="k">${k}</div><div class="v">${v}<span class="u"> ${u || ""}</span></div></div>`;
 }
 
-function updateMetrics(sec, cfd) {
+/* =====================================================================
+   Design point: angle against speed
+   ===================================================================== */
+function drawSweep(dp) {
+  const cv = document.getElementById("dsweep");
+  const { ctx, w, h } = fit(cv);
+  const sw = dp.sweep;
+  const pad = { l: 42, r: 46, t: 14, b: 28 };
+  const vLo = sw[0].V, vHi = sw[sw.length - 1].V;
+  let aHi = 4;
+  for (const s of sw) aHi = Math.max(aHi, s.peak);
+  aHi *= 1.12;
+  let dHi = 0.1;
+  for (const s of sw) dHi = Math.max(dHi, s.Dpeak);
+  dHi *= 1.12;
+
+  const X = v => pad.l + (v - vLo) / (vHi - vLo || 1) * (w - pad.l - pad.r);
+  const Y = a => h - pad.b - a / aHi * (h - pad.t - pad.b);
+  const Yd = d => h - pad.b - d / dHi * (h - pad.t - pad.b);
+
+  ctx.strokeStyle = "rgba(21,34,41,0.1)"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const a = aHi * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(a)); ctx.lineTo(w - pad.r, Y(a)); ctx.stroke();
+    text(ctx, a.toFixed(0) + "°", pad.l - 6, Y(a) + 3, { align: "right" });
+    text(ctx, (dHi * i / 4).toFixed(0), w - pad.r + 6, Y(a) + 3, { colour: "#bd6b3f" });
+  }
+  for (let i = 0; i <= 4; i++) {
+    const v = vLo + (vHi - vLo) * i / 4;
+    text(ctx, mph(v).toFixed(1), X(v), h - 9, { align: "center" });
+  }
+  text(ctx, "angle", 8, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
+  text(ctx, "N", w - pad.r + 6, pad.t + 10, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
+  text(ctx, "mph", w - pad.r, h - 9, { align: "left", colour: "#8b959a" });
+
+  // band between the trough and crest of the stroke
+  ctx.beginPath();
+  sw.forEach((s, i) => i ? ctx.lineTo(X(s.V), Y(s.peak)) : ctx.moveTo(X(s.V), Y(s.peak)));
+  for (let i = sw.length - 1; i >= 0; i--) ctx.lineTo(X(sw[i].V), Y(Math.max(0, sw[i].low)));
+  ctx.closePath();
+  ctx.fillStyle = "rgba(45,114,119,0.15)"; ctx.fill();
+
+  const line = (get, colour, width, dash) => {
+    ctx.save(); if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    sw.forEach((s, i) => { const y = get(s); i ? ctx.lineTo(X(s.V), y) : ctx.moveTo(X(s.V), y); });
+    ctx.strokeStyle = colour; ctx.lineWidth = width; ctx.stroke(); ctx.restore();
+  };
+  line(s => Y(s.peak), "#2d7277", 2.4);
+  line(s => Y(s.trim), "#8b959a", 1.6, [5, 4]);
+  line(s => Yd(s.Dpeak), "#bd6b3f", 1.8);
+
+  // the design point itself
+  const dx = X(S.designV), dy = Y(S.designAngle);
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(21,34,41,0.4)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(dx, pad.t); ctx.lineTo(dx, h - pad.b); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(dx, dy, 5, 0, 7); ctx.fillStyle = "#2d7277"; ctx.fill();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+
+  // stalled region
+  const st = sw.filter(s => s.stalled);
+  if (st.length) {
+    ctx.fillStyle = "rgba(189,107,63,0.10)";
+    ctx.fillRect(pad.l, pad.t, X(st[st.length - 1].V) - pad.l, h - pad.t - pad.b);
+    text(ctx, "past stall", pad.l + 5, pad.t + 12, { colour: "#8c4823" });
+  }
+
+  legend("dsweepLegend", [
+    { colour: "#2d7277", label: "crest of the stroke" },
+    { colour: "#8b959a", dash: true, label: "trim" },
+    { colour: "rgba(45,114,119,0.4)", fill: "rgba(45,114,119,0.15)", label: "range within one stroke" },
+    { colour: "#bd6b3f", label: "fuse drag at the crest" }
+  ]);
+}
+
+function updateDesign() {
+  const dp = designPoint(S.fuse, S.pump, S.vmin, S.vmax);
+  const slow = dp.sweep[0];
+  S.designV = slow.V;
+  S.designAngle = Math.abs(slow.peak);
+  S.V = S.designV;
+  S.alpha = S.angleOverride == null ? S.designAngle : S.angleOverride;
+
+  const big = document.getElementById("angleBig");
+  if (big) big.textContent = S.alpha.toFixed(1) + "°";
+  const note = document.getElementById("angleNote");
+  if (note) {
+    note.innerHTML = S.angleOverride == null
+      ? `Worked out from your setup. Trim is ${slow.trim.toFixed(1)}° and the stroke adds the rest.`
+      : `Overridden. Your setup works out at ${S.designAngle.toFixed(1)}°.
+         <button type="button" id="angleAuto">Use that instead</button>`;
+    const auto = document.getElementById("angleAuto");
+    if (auto) auto.addEventListener("click", () => {
+      S.angleOverride = null; S.cache.clear(); syncControls(); render();
+    });
+  }
+  if (isOpen("design")) drawSweep(dp);
+  const fast = dp.sweep[dp.sweep.length - 1];
+  document.getElementById("designMetrics").innerHTML = [
+    metric("Design angle", S.designAngle.toFixed(1), "°"),
+    metric("At", mph(S.designV).toFixed(1), "mph"),
+    metric("Trim there", slow.trim.toFixed(1), "°"),
+    metric("Falls to", Math.abs(fast.peak).toFixed(1), "° at " + mph(fast.V).toFixed(1) + " mph"),
+    metric("Fuse drag", slow.Dpeak.toFixed(2), "N")
+  ].join("");
+
+  const el = document.getElementById("designFlag");
+  el.className = "flag " + (slow.stalled ? "warn" : "ok");
+  el.textContent = (slow.stalled
+    ? `At ${mph(slow.V).toFixed(1)} mph this wing is asking for ${slow.trim.toFixed(1)}°, which is at its stall, so you are below the speed it will hold. `
+    : `Trim alone puts the fuse at ${slow.trim.toFixed(1)}° at your slowest pumping speed. `) +
+    `The stroke lifts that to ${S.designAngle.toFixed(1)}° at the crest, and that crest is where the
+     fuse costs the most, so it is what the section is drawn for. By ${mph(fast.V).toFixed(1)} mph the
+     crest has dropped to ${Math.abs(fast.peak).toFixed(1)}°. Absolute drag climbs with speed because
+     dynamic pressure does, but misalignment is worst down here, which is where shape earns its
+     keep.`.replace(/\s+/g, " ");
+}
+
+/* =====================================================================
+   Compare: whatever you have saved, plus the fuse you are holding
+   ===================================================================== */
+const CMP_COLOURS = ["#bd6b3f", "#4a6f9c", "#8a7a3f", "#7a4a6f", "#3f8a5c", "#9c4a4a"];
+
+function outlineName(f) {
+  const sd = f.section;
+  if (sd.type === "superellipse") return sd.n <= 2.05 ? "Ellipse" : `Superellipse ${sd.n}`;
+  if (sd.type === "rect") return `Rounded rect ${(+sd.fillet).toFixed(1)}mm`;
+  return `Aerofoil nose ${sd.flip ? "up" : "down"}`;
+}
+function autoName(f) {
+  return `${outlineName(f)} ${(+f.h).toFixed(0)}×${(+f.w).toFixed(0)}`;
+}
+function addToCompare(fuse, name) {
+  const f = cloneFuse(fuse);
+  S.saved.push({ fuse: f, name: name || autoName(f), colour: CMP_COLOURS[S.saved.length % CMP_COLOURS.length] });
+  renderSavedList();
+}
+function cmpSet() {
+  return [{ fuse: S.fuse, name: "Working: " + autoName(S.fuse), colour: "#2d7277", live: true }]
+    .concat(S.saved);
+}
+
+function renderSavedList() {
+  const el = document.getElementById("savedList");
+  if (!el) return;
+  if (!S.saved.length) {
+    el.innerHTML = `<p class="hint">Nothing saved. Shape a fuse, press <b>Save to compare</b>,
+      change it, and save again to see the two side by side.</p>`;
+    return;
+  }
+  el.innerHTML = S.saved.map((sv, i) => `<div class="saved-row">
+      <span class="swatch" style="background:${sv.colour}"></span>
+      <span class="nm">${sv.name}</span>
+      <button type="button" data-base="${i + 1}" class="${S.baseline === i + 1 ? "on" : ""}" title="Use as baseline">base</button>
+      <button type="button" data-del="${i}" title="Remove">×</button>
+    </div>`).join("");
+  for (const b of el.querySelectorAll("[data-del]"))
+    b.addEventListener("click", () => {
+      S.saved.splice(+b.dataset.del, 1);
+      if (S.baseline > S.saved.length) S.baseline = 0;
+      renderSavedList(); render();
+    });
+  for (const b of el.querySelectorAll("[data-base]"))
+    b.addEventListener("click", () => { S.baseline = +b.dataset.base; renderSavedList(); render(); });
+}
+
+function drawCompareAB() {
+  const cv = document.getElementById("ccmp");
+  const { ctx, w, h } = fit(cv);
+  const set = cmpSet().map(x => ({ ...x, s: sectionFor(x.fuse, S.alpha, 0.5) })).filter(x => x.s);
+  if (!set.length) { text(ctx, "nothing to compare", w / 2, h / 2, { align: "center" }); return; }
+
+  const pad = 38;
+  let maxC = 0, maxT = 0;
+  for (const x of set) { maxC = Math.max(maxC, x.s.chord); maxT = Math.max(maxT, x.s.tmax); }
+  const scale = Math.min((w - 2 * pad) / maxC, (h - 2 * pad) / (maxT * 2.5));
+
+  ctx.strokeStyle = "rgba(21,34,41,0.14)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad * 0.5, h / 2); ctx.stroke();
+
+  for (const x of set) {
+    ctx.save();
+    if (!x.live) ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    for (let k = 0; k < x.s.N; k++) ctx.lineTo(pad + (x.s.u[k] - x.s.uLE) * scale, h / 2 - x.s.t[k] * scale);
+    for (let k = x.s.N - 1; k >= 0; k--) ctx.lineTo(pad + (x.s.u[k] - x.s.uLE) * scale, h / 2 + x.s.t[k] * scale);
+    ctx.closePath();
+    if (x.live) { ctx.fillStyle = "rgba(45,114,119,0.16)"; ctx.fill(); }
+    ctx.strokeStyle = x.colour; ctx.lineWidth = x.live ? 2.2 : 1.6; ctx.stroke();
+    ctx.restore();
+  }
+  // label each outline where it is thickest, so nothing needs a legend
+  set.forEach((x, idx) => {
+    let iTop = 0;
+    for (let k = 0; k < x.s.N; k++) if (x.s.t[k] > x.s.t[iTop]) iTop = k;
+    const lx = pad + (x.s.u[iTop] - x.s.uLE) * scale;
+    const above = idx % 2 === 0;
+    const ly = above ? h / 2 - x.s.t[iTop] * scale - 7 : h / 2 + x.s.t[iTop] * scale + 15;
+    const label = x.live ? "working" : x.name;
+    ctx.save();
+    ctx.font = "600 11.5px 'Avenir Next', sans-serif";
+    ctx.textAlign = "center";
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = "rgba(255,250,243,.9)";
+    ctx.fillRect(lx - tw / 2 - 5, ly - 12, tw + 10, 16);
+    ctx.fillStyle = x.colour;
+    ctx.fillText(label, lx, ly);
+    ctx.restore();
+  });
+  text(ctx, "flow →", pad, h - 10, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
+  document.getElementById("cmpAngle").textContent =
+    `all cut at ${S.alpha.toFixed(1)}°, ${mph(S.V).toFixed(1)} mph`;
+}
+
+function updateABTable() {
+  const tb = document.querySelector("#cmpTable tbody");
+  const set = cmpSet();
+  const rows = set.map(x => {
+    const sec = sectionFor(x.fuse, S.alpha, 0.5);
+    if (!sec) return null;
+    return { ...x, sec, D: totalDrag(x.fuse, S.alpha, S.V, 21).D, pr: sectionProps(x.fuse) };
+  }).filter(Boolean);
+  if (!rows.length) { tb.innerHTML = ""; return; }
+  const base = rows[Math.min(S.baseline, rows.length - 1)];
+
+  tb.innerHTML = rows.map(r => {
+    const d = 100 * (r.D / Math.max(base.D, 1e-9) - 1);
+    const blunt = Math.max(r.sec.tLE, r.sec.tTE);
+    return `<tr${r === base ? ' class="me"' : ""}>
+      <td><span class="swatch" style="background:${r.colour}"></span>${r.name}${r === base ? " (baseline)" : ""}</td>
+      <td>${(+r.fuse.h).toFixed(1)} × ${(+r.fuse.w).toFixed(1)}</td>
+      <td>${(100 * r.sec.tmax / r.sec.chord).toFixed(1)}%</td>
+      <td>${blunt > 0.3 ? blunt.toFixed(1) + " mm" : "–"}</td>
+      <td>${r.D.toFixed(2)} N</td>
+      <td>${r === base ? "–" : (d >= 0 ? "+" : "") + d.toFixed(0) + "%"}</td>
+      <td>${(r.pr.Iyy / 1000).toFixed(1)}k</td>
+      <td>${r.pr.area.toFixed(0)} mm²</td>
+    </tr>`;
+  }).join("");
+
+  const el = document.getElementById("cmpVerdict");
+  if (rows.length < 2) { el.className = "flag ok"; el.textContent =
+    "Save a second design to see the difference."; return; }
+  const best = rows.reduce((a, b) => a.D < b.D ? a : b);
+  const worst = rows.reduce((a, b) => a.D > b.D ? a : b);
+  const spread = 100 * (worst.D / Math.max(best.D, 1e-9) - 1);
+  const sameStiff = rows.every(r => Math.abs(r.pr.Iyy / base.pr.Iyy - 1) < 0.05);
+  el.className = "flag ok";
+  el.textContent = `Lowest drag is ${best.name} at ${best.D.toFixed(2)} N. The spread across
+    ${rows.length} designs is ${spread.toFixed(0)}%.` +
+    (rows.some(r => r.fuse.h > S.hMax) ? ` One of them is taller than the ${S.hMax} mm joint limit.` : "") +
+    (sameStiff ? " They all carry the same vertical stiffness, so that is a like-for-like difference."
+               : " Stiffness varies between them, so this is not like-for-like; check the stiffness column.");
+}
+
+/* =====================================================================
+   Section metrics
+   ===================================================================== */
+function updateMetrics(sec) {
   const el = document.getElementById("secMetrics");
   const flag = document.getElementById("secFlag");
   if (!sec) { el.innerHTML = ""; flag.innerHTML = ""; return; }
@@ -2149,202 +2497,224 @@ function updateMetrics(sec, cfd) {
   const tot = totalDrag(S.fuse, S.alpha, S.V, 25);
   el.innerHTML = [
     metric("Chord", sec.chord.toFixed(0), "mm"),
-    metric("Max thickness", sec.tmax.toFixed(1), "mm"),
+    metric("Thickness", sec.tmax.toFixed(1), "mm"),
     metric("t / c", (100 * sec.tmax / sec.chord).toFixed(1), "%"),
-    metric("Thickness at", (100 * sec.tmaxAt).toFixed(0), "% chord"),
     metric("Reynolds", (dr.Re / 1e6).toFixed(2), "×10⁶"),
-    metric("Section Cₔ", dr.Cd.toFixed(4), ""),
     metric("Fuse drag", tot.D.toFixed(2), "N"),
     metric("Power", tot.power.toFixed(1), "W")
   ].join("");
+  document.getElementById("secNote").textContent =
+    `cut at ${S.alpha.toFixed(1)}°, ${mph(S.V).toFixed(1)} mph`;
 
-  const bluntLE = sec.tLE / sec.chord, bluntTE = sec.tTE / sec.chord;
+  const bl = sec.tLE / sec.chord, bt = sec.tTE / sec.chord;
   let msg = "", cls = "ok";
-  if (bluntTE > 0.01 || bluntLE > 0.01) {
+  if (bt > 0.01 || bl > 0.01) {
     cls = "warn";
     const parts = [];
-    if (bluntLE > 0.01) parts.push(`a ${sec.tLE.toFixed(1)} mm blunt leading edge`);
-    if (bluntTE > 0.01) parts.push(`a ${sec.tTE.toFixed(1)} mm blunt base`);
-    msg = `This cut has ${parts.join(" and ")}. Those account for ${(100 * (dr.Cdb + dr.Cdn) / dr.Cd).toFixed(0)}% of the section drag, and no amount of surface finish will recover it.`;
+    if (bl > 0.01) parts.push(`a ${sec.tLE.toFixed(1)} mm blunt leading edge`);
+    if (bt > 0.01) parts.push(`a ${sec.tTE.toFixed(1)} mm blunt base`);
+    msg = `This cut has ${parts.join(" and ")}, worth ${(100 * (dr.Cdb + dr.Cdn) / dr.Cd).toFixed(0)}% of
+      the section drag. No amount of surface finish recovers that.`;
   } else {
-    msg = `Closed at both ends, so all of the section drag is friction and form. Form factor ${dr.FF.toFixed(2)}.`;
+    msg = `Closed at both ends, so the section drag is friction and form only. Form factor ${dr.FF.toFixed(2)}.`;
   }
   flag.className = "flag " + cls;
-  flag.textContent = msg;
+  flag.textContent = msg.replace(/\s+/g, " ");
 }
 
-function updateTable() {
-  const tb = document.querySelector("#cmpTable tbody");
-  const rows = [];
-  for (const f of LIBRARY) {
-    const use = (f.id === S.fuse.id) ? S.fuse : f;
-    const sec = sectionFor(use, S.alpha, 0.5);
-    if (!sec) continue;
-    const dr = sectionDrag(sec, S.V);
-    const tot = totalDrag(use, S.alpha, S.V, 21);
-    rows.push({ f, use, sec, dr, tot });
-  }
-  rows.sort((a, b) => a.tot.D - b.tot.D);
-  tb.innerHTML = rows.map(r => `
-    <tr class="${r.f.id === S.fuse.id ? "me" : ""}">
-      <td><span class="swatch" style="background:${r.f.colour}"></span>${r.f.name}</td>
-      <td>${r.use.h} × ${r.use.w}</td>
-      <td>${r.sec.chord.toFixed(0)}</td>
-      <td>${(100 * r.sec.tmax / r.sec.chord).toFixed(1)}%</td>
-      <td>${r.sec.tLE > 0.3 ? r.sec.tLE.toFixed(1) + " mm" : "–"}</td>
-      <td>${r.sec.tTE > 0.3 ? r.sec.tTE.toFixed(1) + " mm" : "–"}</td>
-      <td>${r.dr.Cd.toFixed(4)}</td>
-      <td>${r.tot.D.toFixed(2)} N</td>
-      <td>${r.tot.power.toFixed(1)} W</td>
-    </tr>`).join("");
-  document.getElementById("cmpAngle").textContent = S.alpha.toFixed(1) + "°";
-}
-
-/* =====================================================================
-   Config in / out
-   ===================================================================== */
 function updateConfig() {
   const f = S.fuse;
   document.getElementById("cfgOut").value = JSON.stringify({
-    id: f.id, name: f.name, L: f.L, h: f.h, w: f.w,
-    section: f.section,
-    wNose: f.wNose, wTail: f.wTail, hNose: f.hNose, hTail: f.hTail,
-    note: f.note || ""
+    id: f.id, name: f.name, L: f.L, h: f.h, w: f.w, section: f.section,
+    wNose: f.wNose, wTail: f.wTail, hNose: f.hNose, hTail: f.hTail, note: f.note || ""
   }, null, 2);
+}
+
+function renderOptimum(before) {
+  const el = document.getElementById("optOut");
+  if (!S.optimum) { el.innerHTML = ""; return; }
+  const o = S.optimum;
+  const gain = 100 * (1 - o.D / Math.max(before.D, 1e-9));
+  const same = Math.abs(o.fuse.h - before.h) < 0.15 && Math.abs(o.fuse.w - before.w) < 0.15;
+  el.innerHTML = `<div class="opt-result">${same
+    ? `Your <b>${before.h} × ${before.w} mm</b> is already the best pair of proportions for this
+       outline at ${S.alpha.toFixed(1)}°, holding the same stiffness and material.`
+    : `Changed from <b>${before.h} × ${before.w} mm</b> to
+       <b>${o.fuse.h.toFixed(1)} × ${o.fuse.w.toFixed(1)} mm</b>.
+       Drag ${before.D.toFixed(2)} N → <b>${o.D.toFixed(2)} N</b>,
+       ${gain >= 0 ? `a ${gain.toFixed(0)}% saving` : `${(-gain).toFixed(0)}% worse`}.
+       Same outline, same vertical stiffness, same material.`}
+    ${o.capped ? `<br>Height is pegged at the ${S.hMax} mm joint limit.` : ""}
+    ${o.over ? `<br><b>Over the limit.</b> Carrying this stiffness in this outline needs
+      ${o.fuse.h.toFixed(1)} mm of height, past the ${S.hMax} mm the joints will take. Treat it as
+      a target to design towards, not a part.` : ""}
+  </div>`;
 }
 
 /* =====================================================================
    Render
    ===================================================================== */
-function updatePump() {
-  const tr = pumpTrace(S.V, S.pump);
-  const cyc = cycleDrag(S.fuse, S.V, S.pump);
-  const steady = totalDrag(S.fuse, tr.trim, S.V, 21).D;
-  document.getElementById("pumpNote").textContent =
-    `${S.pump.f.toFixed(1)} Hz, ${(S.pump.heave * 1000).toFixed(0)} mm heave`;
-  document.getElementById("pumpMetrics").innerHTML = [
-    metric("Trim angle", tr.trim.toFixed(1), "°"),
-    metric("Swing", "±" + tr.swing.toFixed(1), "°"),
-    metric("Range", `${tr.min.toFixed(1)} to ${tr.max.toFixed(1)}`, "°"),
-    metric("Drag-weighted", cyc.effAngle.toFixed(1), "°"),
-    metric("Cycle-mean drag", cyc.mean.toFixed(2), "N")
-  ].join("");
-  const el = document.getElementById("pumpFlag");
-  el.className = "flag " + (tr.trim > 11 ? "warn" : "ok");
-  el.textContent = (tr.trim > 11
-    ? `Trim wants ${tr.trim.toFixed(1)}°, at or past this wing's stall, so you are below the speed it will hold.`
-    : `The lift equation alone puts the fuse at ${tr.trim.toFixed(1)}° before the rider does anything.`) +
-    ` Pumping swings it between ${tr.min.toFixed(1)}° and ${tr.max.toFixed(1)}°.`;
-}
-
 let cfdPending = null;
-function render() {
-  const sec = currentSection();
-  draw3D();
-  drawSide();
-  drawSection();
-  drawDragCurve();
-  drawPump();
-  drawCompare();
-  updateTable();
-  updatePump();
-  updateConfig();
-
-  legend("d3Legend", [
-    { colour: "#6f8b90", fill: "#8fa5a8", label: "fuse, with the near half cut away" },
-    { colour: "#a4562f", fill: "rgba(189,107,63,0.55)", label: "the exposed cut face" },
-    { colour: "#bd6b3f", dash: true, label: "cutting plane, lying along the flow" }
-  ]);
-  legend("sideLegend", [
-    { colour: "#2d7277", fill: "rgba(45,114,119,0.24)", label: "fuse silhouette" },
-    { colour: "rgba(21,34,41,0.35)", label: "streamlines at the pump angle" },
-    { colour: "#bd6b3f", label: "the cut, drawn over its chord" }
-  ]);
-  legend("cpLegend", [
-    { colour: "#2d7277", label: "surface pressure coefficient" },
-    { colour: "#8a7a3f", dash: true, label: "transition to turbulent" },
-    { colour: "#bd6b3f", dash: true, label: "separation" }
-  ]);
-  legend("cfdLegend", [
-    { colour: "#1a343d", fill: "#1a343d", label: "dye released upstream" },
-    { colour: "#96c4c7", fill: "#96c4c7", label: "vorticity one way" },
-    { colour: "#d6aa94", fill: "#d6aa94", label: "and the other" }
-  ]);
-  scheduleCFD();
-
-  clearTimeout(cfdPending);
-  updateMetrics(sec, null);
-  cfdPending = setTimeout(() => {
-    const cfd = sec ? runSectionCFD(sec, S.V) : null;
-    drawCp(cfd);
-  }, 30);
+function isOpen(name) {
+  const el = document.querySelector(`[data-stage="${name}"]`);
+  return el && el.dataset.open === "true";
 }
+function render() {
+  updateDesign();                 // sets S.alpha and S.V from the design point
+  const sec = currentSection();
 
-function renderOptimum() {
-  const el = document.getElementById("optOut");
-  document.getElementById("optApply").disabled = !S.optimum;
-  document.getElementById("optClear").disabled = !S.optimum;
-  if (!S.optimum) { el.innerHTML = ""; return; }
-  const o = S.optimum, cur = totalDrag(S.fuse, S.alpha, S.V, 21).D;
-  const gain = 100 * (1 - o.D / Math.max(cur, 1e-9));
-  const name = {
-    superellipse: n => `superellipse, exponent ${n}`,
-    rect: r => `rounded rectangle, ${r} mm corners`,
-    naca: f => `aerofoil section, nose ${f ? "up" : "down"}`
-  };
-  const sd = o.fuse.section;
-  const label = sd.type === "superellipse" ? name.superellipse(sd.n)
-              : sd.type === "rect" ? name.rect(sd.fillet) : name.naca(sd.flip);
-  el.innerHTML = `<div class="opt-result">
-    At <b>${S.alpha.toFixed(1)}°</b> and <b>${S.V.toFixed(1)} m/s</b>, holding stiffness and area,
-    the lowest-drag fuse is a <b>${label}</b> at
-    <b>${o.fuse.h.toFixed(1)} × ${o.fuse.w.toFixed(1)} mm</b>.
-    Drag <b>${o.D.toFixed(2)} N</b> against ${cur.toFixed(2)} N for the fuse you have,
-    ${gain >= 0 ? `a ${gain.toFixed(0)}% saving` : `which is ${(-gain).toFixed(0)}% worse, so what you have is already better`}.
-    ${o.capped ? `<br>Height is pegged at the ${S.hMax} mm joint limit.` : ""}
-    <br><span style="color:var(--muted)">Read the margin, not the winner. A few percent is inside this
-    model's noise; tens of percent is not.</span>
-  </div>`;
+  if (isOpen("design")) {
+    draw3D(); drawSide(); drawSection();
+    updateMetrics(sec);
+    legend("d3Legend", [
+      { colour: "#6f8b90", fill: "#8fa5a8", label: "fuse, near half cut away" },
+      { colour: "#a4562f", fill: "rgba(189,107,63,0.55)", label: "the exposed cut face" },
+      { colour: "#bd6b3f", dash: true, label: "cutting plane, along the flow" }
+    ]);
+    legend("sideLegend", [
+      { colour: "#2d7277", fill: "rgba(45,114,119,0.24)", label: "fuse silhouette" },
+      { colour: "rgba(21,34,41,0.35)", label: "streamlines at the design angle" },
+      { colour: "#bd6b3f", label: "the cut, over its chord" }
+    ]);
+  }
+  if (isOpen("compare")) { drawCompareAB(); updateABTable(); drawDragCurve(); }
+  if (isOpen("simulate")) {
+    legend("cpLegend", [
+      { colour: "#2d7277", label: "surface pressure coefficient" },
+      { colour: "#8a7a3f", dash: true, label: "transition to turbulent" },
+      { colour: "#bd6b3f", dash: true, label: "separation" }
+    ]);
+    legend("cfdLegend", [
+      { colour: "#1a343d", fill: "#1a343d", label: "dye released upstream" },
+      { colour: "#96c4c7", fill: "#96c4c7", label: "vorticity one way" },
+      { colour: "#d6aa94", fill: "#d6aa94", label: "and the other" }
+    ]);
+    scheduleCFD();
+    clearTimeout(cfdPending);
+    cfdPending = setTimeout(() => drawCp(sec ? runSectionCFD(sec, S.V) : null), 30);
+  }
+  updateConfig();
 }
 
 /* =====================================================================
-   UI wiring
+   Controls
    ===================================================================== */
+const RIDE_BASIC = [
+  { id: "pmass", label: "Rider + gear", unit: "kg", min: 40, max: 140, step: 1,
+    get: () => S.pump.mass, set: v => S.pump.mass = v },
+  { id: "pwing", label: "Front wing", unit: "cm²", min: 400, max: 2500, step: 10,
+    get: () => Math.round(S.pump.S * 1e4), set: v => S.pump.S = v / 1e4 }
+];
+const RIDE_ADVANCED = [
+  { id: "par", label: "Aspect ratio", unit: "", min: 4, max: 20, step: 0.1,
+    get: () => S.pump.AR, set: v => S.pump.AR = v },
+  { id: "pfreq", label: "Pump rate", unit: "Hz", min: 0.5, max: 3.5, step: 0.1,
+    get: () => S.pump.f, set: v => S.pump.f = v },
+  { id: "pheave", label: "Heave", unit: "mm", min: 10, max: 200, step: 5,
+    get: () => Math.round(S.pump.heave * 1000), set: v => S.pump.heave = v / 1000 },
+  { id: "pfeather", label: "Feathering", unit: "%", min: 0, max: 95, step: 5,
+    get: () => Math.round(S.pump.feather * 100), set: v => S.pump.feather = v / 100 },
+  { id: "vmin", label: "Slowest pump", unit: "mph", min: 4, max: 13, step: 0.5,
+    get: () => +mph(S.vmin).toFixed(1),
+    set: v => { S.vmin = fromMph(v); if (S.vmax <= S.vmin + 0.2) S.vmax = S.vmin + 0.2; } },
+  { id: "vmax", label: "Fastest pump", unit: "mph", min: 7, max: 20, step: 0.5,
+    get: () => +mph(S.vmax).toFixed(1),
+    set: v => S.vmax = Math.max(fromMph(v), S.vmin + 0.2) }
+];
+// Typing here overrides the computed angle; the note offers a way back.
+const ANGLE_ROW = [
+  { id: "alphaSet", label: "Override the angle", unit: "°", min: 0, max: 30, step: 0.5,
+    get: () => +(S.angleOverride ?? S.designAngle).toFixed(1),
+    set: v => S.angleOverride = v }
+];
+const SHAPE_ROWS = [
+  { id: "nExp", label: "Exponent", unit: "", min: 1.6, max: 10, step: 0.1,
+    when: () => S.fuse.section.type === "superellipse",
+    get: () => S.fuse.section.n, set: v => S.fuse.section.n = v },
+  { id: "fillet", label: "Corner radius", unit: "mm", min: 0.2, max: 16, step: 0.1,
+    when: () => S.fuse.section.type === "rect",
+    get: () => S.fuse.section.fillet, set: v => S.fuse.section.fillet = v }
+];
+const FUSE_ROWS = [
+  { id: "L", label: "Length", unit: "mm", min: 300, max: 900, step: 5,
+    get: () => S.fuse.L, set: v => S.fuse.L = v },
+  { id: "h", label: "Height", unit: "mm", min: 10, max: 70, step: 0.5,
+    get: () => S.fuse.h, set: v => S.fuse.h = v },
+  { id: "w", label: "Width", unit: "mm", min: 6, max: 70, step: 0.5,
+    get: () => S.fuse.w, set: v => S.fuse.w = v }
+];
+const SIM_ROWS = [
+  { id: "cfdSpeed", label: "Playback speed", unit: "×", min: 0.5, max: 2, step: 0.1,
+    get: () => S.cfdSpeed, set: v => S.cfdSpeed = v }
+];
+const SLICE_ROW = [
+  { id: "slicePos", label: "Which cut", unit: "%", min: 2, max: 98, step: 0.5,
+    get: () => Math.round(S.slicePos * 100), set: v => S.slicePos = v / 100 }
+];
+
+// One control, two ways in: drag it or type it. Keeps the panel tidy without
+// giving up the ability to set an exact number.
+function buildRows(hostId, defs) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  host.innerHTML = defs.map(d => `<label class="rr" data-row="${d.id}">
+      <span>${d.label}</span>
+      <input type="range" id="${d.id}" min="${d.min}" max="${d.max}" step="${d.step}">
+      <span class="num"><input type="number" id="${d.id}N" min="${d.min}" max="${d.max}" step="${d.step}"><i>${d.unit}</i></span>
+    </label>`).join("");
+  for (const d of defs) {
+    const r = document.getElementById(d.id), n = document.getElementById(d.id + "N");
+    const apply = v => {
+      if (!isFinite(v)) return;
+      v = Math.max(d.min, Math.min(d.max, v));
+      d.set(v); S.cache.clear(); syncControls(); render();
+    };
+    r.addEventListener("input", () => apply(parseFloat(r.value)));
+    n.addEventListener("change", () => apply(parseFloat(n.value)));
+  }
+}
+
+function syncRows(defs) {
+  for (const d of defs) {
+    const r = document.getElementById(d.id), n = document.getElementById(d.id + "N");
+    if (!r) continue;
+    const row = document.querySelector(`[data-row="${d.id}"]`);
+    if (row) row.style.display = (d.when && !d.when()) ? "none" : "";
+    const v = d.get();
+    if (document.activeElement !== r) r.value = v;
+    if (document.activeElement !== n) n.value = v;
+  }
+}
+
+function setStage(name, open) {
+  const el = document.querySelector(`[data-stage="${name}"]`);
+  if (!el) return;
+  el.dataset.open = String(open);
+  if (name === "simulate") cfdInView = open;
+  // the controls that drive a stage only appear while that stage is showing
+  for (const c of document.querySelectorAll(`[data-for="${name}"]`)) c.hidden = !open;
+  if (open) render();
+}
+
 function syncControls() {
   const f = S.fuse;
-  document.getElementById("alphaV").textContent = S.alpha.toFixed(1) + "°";
-  document.getElementById("speedV").textContent = S.V.toFixed(1) + " m/s";
-  document.getElementById("slicePosV").textContent = (100 * S.slicePos).toFixed(0) + "%";
-  document.getElementById("LV").textContent = f.L + " mm";
-  document.getElementById("hV").textContent = f.h + " mm";
-  document.getElementById("wV").textContent = f.w + " mm";
-  document.getElementById("pmassV").textContent = S.pump.mass.toFixed(0) + " kg";
-  document.getElementById("pwingV").textContent = (S.pump.S * 1e4).toFixed(0) + " cm²";
-  document.getElementById("pfreqV").textContent = S.pump.f.toFixed(1) + " Hz";
-  document.getElementById("pheaveV").textContent = (S.pump.heave * 1000).toFixed(0) + " mm";
-  document.getElementById("pfeatherV").textContent = (100 * S.pump.feather).toFixed(0) + "%";
-  document.getElementById("L").value = f.L;
-  document.getElementById("h").value = f.h;
-  document.getElementById("w").value = f.w;
-  document.getElementById("presetNote").textContent = f.note || "";
-
+  syncRows(RIDE_BASIC); syncRows(RIDE_ADVANCED); syncRows(ANGLE_ROW);
+  syncRows(SHAPE_ROWS); syncRows(FUSE_ROWS); syncRows(SLICE_ROW); syncRows(SIM_ROWS);
+  const note = document.getElementById("presetNote");
+  if (note) note.textContent = f.note || "";
   for (const b of document.querySelectorAll("#secType button"))
     b.setAttribute("aria-pressed", String(b.dataset.t === f.section.type));
-  document.getElementById("rowN").style.display = f.section.type === "superellipse" ? "" : "none";
-  document.getElementById("rowFillet").style.display = f.section.type === "rect" ? "" : "none";
-  document.getElementById("rowFlip").style.display = f.section.type === "naca" ? "" : "none";
-  if (f.section.type === "superellipse") {
-    document.getElementById("nExp").value = f.section.n;
-    document.getElementById("nExpV").textContent = f.section.n.toFixed(1);
-  }
-  if (f.section.type === "rect") {
-    document.getElementById("fillet").value = f.section.fillet;
-    document.getElementById("filletV").textContent = f.section.fillet.toFixed(1) + " mm";
-  }
+  const flip = document.getElementById("rowFlip");
+  if (flip) flip.style.display = f.section.type === "naca" ? "" : "none";
   if (f.section.type === "naca") {
     for (const b of document.querySelectorAll("#flipSeg button"))
       b.setAttribute("aria-pressed", String((b.dataset.f === "1") === !!f.section.flip));
   }
+}
+
+function fuseOptions(extra) {
+  return (extra ? `<option value="current">Your fuse</option>` : "") +
+    LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
 }
 
 function init() {
@@ -2353,55 +2723,53 @@ function init() {
   sel.value = S.fuse.id;
   sel.addEventListener("change", () => {
     const f = LIBRARY.find(x => x.id === sel.value);
-    if (f) { S.fuse = cloneFuse(f); S.cache.clear(); syncControls(); render(); }
+    if (f) { S.fuse = cloneFuse(f); S.optimum = null; S.cache.clear(); syncControls(); render(); }
   });
 
-  const bsel = document.getElementById("baseline");
-  bsel.innerHTML = `<option value="">nothing</option>` +
-    LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
-  bsel.value = S.baseline;
-  bsel.addEventListener("change", () => { S.baseline = bsel.value; render(); });
+  const cmpSel = document.getElementById("cmpB");
+  cmpSel.innerHTML = LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
+  cmpSel.value = S.cmpB;
+  cmpSel.addEventListener("change", () => { S.cmpB = cmpSel.value; });
+  document.getElementById("addRef").addEventListener("click", () => {
+    const f = LIBRARY.find(x => x.id === cmpSel.value);
+    if (f) { addToCompare(f, f.name); render(); }
+  });
+  document.getElementById("matchBase").addEventListener("click", () => {
+    const set = cmpSet();
+    const base = set[Math.min(S.baseline, set.length - 1)];
+    if (!base || base.live) return;
+    const best = optimise(S.alpha, S.V, sectionProps(base.fuse)).best;
+    if (best) { S.fuse.h = best.fuse.h; S.fuse.w = best.fuse.w; S.cache.clear(); syncControls(); render(); }
+  });
+  document.getElementById("addCompare").addEventListener("click", () => {
+    addToCompare(S.fuse);
+    const b = document.getElementById("addCompare");
+    b.textContent = "Saved";
+    setTimeout(() => b.textContent = "Save to compare", 900);
+    render();
+  });
+  renderSavedList();
 
-  const bind = (id, fn) => {
-    const el = document.getElementById(id);
-    el.addEventListener("input", () => { fn(parseFloat(el.value)); S.cache.clear(); syncControls(); render(); });
-  };
-  bind("alpha", v => S.alpha = v);
-  bind("speed", v => S.V = v);
-  bind("slicePos", v => S.slicePos = v);
-  bind("L", v => S.fuse.L = v);
-  bind("h", v => S.fuse.h = v);
-  bind("w", v => S.fuse.w = v);
-  bind("nExp", v => { if (S.fuse.section.type === "superellipse") S.fuse.section.n = v; });
-  bind("fillet", v => { if (S.fuse.section.type === "rect") S.fuse.section.fillet = v; });
-  bind("pmass", v => S.pump.mass = v);
-  bind("pwing", v => S.pump.S = v);
-  bind("pfreq", v => S.pump.f = v);
-  bind("pheave", v => S.pump.heave = v);
-  bind("pfeather", v => S.pump.feather = v);
+  buildRows("rideBasic", RIDE_BASIC);
+  buildRows("rideAdvanced", RIDE_ADVANCED);
+  buildRows("angleRow", ANGLE_ROW);
+  buildRows("shapeRows", SHAPE_ROWS);
+  buildRows("fuseRows", FUSE_ROWS);
+  buildRows("sliceRow", SLICE_ROW);
+  buildRows("simRows", SIM_ROWS);
 
-  document.getElementById("optRun").addEventListener("click", () => {
-    const r = optimise(S.alpha, S.V);
-    S.optimum = r.best;
-    renderOptimum(); render();
-  });
-  document.getElementById("optApply").addEventListener("click", () => {
-    if (!S.optimum) return;
-    S.fuse = cloneFuse(S.optimum.fuse);
-    S.fuse.name = "Optimised " + S.fuse.h.toFixed(0) + " × " + S.fuse.w.toFixed(0);
-    S.fuse.id = "optimised";
-    S.optimum = null;
-    S.cache.clear(); renderOptimum(); syncControls(); render();
-  });
-  document.getElementById("optClear").addEventListener("click", () => {
-    S.optimum = null; renderOptimum(); render();
-  });
+  for (const head of document.querySelectorAll(".stage-head")) {
+    head.addEventListener("click", () => {
+      const st = head.closest(".stage");
+      setStage(st.dataset.stage, st.dataset.open !== "true");
+    });
+  }
 
   for (const b of document.querySelectorAll("#secType button")) {
     b.addEventListener("click", () => {
       const t = b.dataset.t;
       if (t === "superellipse") S.fuse.section = { type: "superellipse", n: 2.4 };
-      if (t === "rect") S.fuse.section = { type: "rect", fillet: 2.5 };
+      if (t === "rect") S.fuse.section = { type: "rect", fillet: 8 };
       if (t === "naca") S.fuse.section = { type: "naca", flip: false };
       S.cache.clear(); syncControls(); render();
     });
@@ -2412,6 +2780,24 @@ function init() {
       S.cache.clear(); syncControls(); render();
     });
   }
+
+  document.getElementById("optRun").addEventListener("click", () => {
+    const btn = document.getElementById("optRun");
+    btn.dataset.busy = "true";
+    btn.innerHTML = '<span class="spin"></span>Searching';
+    setTimeout(() => {
+      const before = { h: S.fuse.h, w: S.fuse.w, D: totalDrag(S.fuse, S.alpha, S.V, 21).D };
+      const best = optimise(S.alpha, S.V).best;
+      if (best) { S.optimum = best; S.fuse.h = best.fuse.h; S.fuse.w = best.fuse.w; }
+      btn.dataset.busy = "false";
+      btn.textContent = "Find them";
+      S.cache.clear(); syncControls();
+      renderOptimum(before);
+      const out = document.getElementById("optOut");
+      out.classList.remove("fade-in"); void out.offsetWidth; out.classList.add("fade-in");
+      render();
+    }, 60);
+  });
 
   // 3D: drag to rotate, scroll to zoom
   const cv = document.getElementById("c3d");
@@ -2425,8 +2811,7 @@ function init() {
     if (!dragging) return;
     S.az -= (e.clientX - lx) * 0.007;
     S.el = Math.max(-1.3, Math.min(1.3, S.el + (e.clientY - ly) * 0.006));
-    lx = e.clientX; ly = e.clientY;
-    draw3D();
+    lx = e.clientX; ly = e.clientY; draw3D();
   });
   const endDrag = e => {
     dragging = false; cv.style.cursor = "grab";
@@ -2441,18 +2826,6 @@ function init() {
   }, { passive: false });
   cv.addEventListener("dblclick", () => { S.zoom = 1; S.az = -0.62; S.el = 0.30; draw3D(); });
 
-  document.getElementById("cfgCopy").addEventListener("click", () => {
-    const ta = document.getElementById("cfgOut");
-    ta.select(); document.execCommand("copy");
-  });
-  document.getElementById("cfgLoad").addEventListener("click", () => {
-    try {
-      const cfg = JSON.parse(document.getElementById("cfgOut").value);
-      S.fuse = Object.assign(cloneFuse(LIBRARY[0]), cfg);
-      S.cache.clear(); syncControls(); render();
-    } catch (e) { alert("Could not parse that config: " + e.message); }
-  });
-
   const tog = document.getElementById("cfdToggle");
   tog.addEventListener("click", () => {
     cfdOn = !cfdOn;
@@ -2460,24 +2833,24 @@ function init() {
     tog.setAttribute("aria-pressed", String(cfdOn));
   });
   document.getElementById("cfdReset").addEventListener("click", () => {
-    const sec = currentSection();
-    if (sec) bakeStart(sec);
+    const sec = currentSection(); if (sec) bakeStart(sec);
   });
-
-  // only spend cycles on the solver while it is actually on screen
-  const cfdCv = document.getElementById("ccfd");
-  if ("IntersectionObserver" in window) {
-    new IntersectionObserver(es => { cfdInView = es[0].isIntersecting; }, { threshold: 0.05 })
-      .observe(cfdCv);
-  } else {
-    cfdInView = true;
-  }
   document.addEventListener("visibilitychange", () => { cfdPageVisible = !document.hidden; });
   cfdLoop();
 
+  document.getElementById("cfgCopy").addEventListener("click", () => {
+    const ta = document.getElementById("cfgOut"); ta.select(); document.execCommand("copy");
+  });
+  document.getElementById("cfgLoad").addEventListener("click", () => {
+    try {
+      const cfg = JSON.parse(document.getElementById("cfgOut").value);
+      S.fuse = Object.assign(cloneFuse(LIBRARY[0]), cfg);
+      S.optimum = null; S.cache.clear(); syncControls(); render();
+    } catch (e) { alert("Could not parse that config: " + e.message); }
+  });
+
   window.addEventListener("resize", () => render());
   syncControls();
-  renderOptimum();
   render();
 }
 
