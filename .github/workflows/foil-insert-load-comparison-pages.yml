@@ -10,6 +10,7 @@ on:
       - "foil-board-optimizer/force_viewer.html"
       - "foil-board-optimizer/comparison.html"
       - "hydrofoil/mockup.html"
+      - "foil-fuse-sections/playground.html"
       - "foil-insert-load-comparison/**"
       - ".github/workflows/foil-insert-load-comparison-pages.yml"
   workflow_dispatch:
