@@ -98,6 +98,13 @@
     height: 0; border: 0; border-top: 2px dashed var(--c); border-radius: 0; width: 15px;
   }
 
+  .prog { display: none; margin-top: 8px; position: relative; height: 16px; }
+  .prog i {
+    display: block; height: 3px; width: 0; background: var(--sea);
+    border-radius: 2px; transition: width .12s linear;
+  }
+  .prog span { font-size: 11px; color: var(--muted); position: absolute; top: 5px; left: 0; }
+
   .opt { display: grid; gap: 12px; }
   .opt-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .opt-result { background: rgba(189,107,63,.09); border: 1px solid rgba(189,107,63,.25);
@@ -278,12 +285,18 @@
             <button id="cfdReset">reset</button>
           </span>
         </div>
-        <canvas id="ccfd" height="150"></canvas>
+        <canvas id="ccfd" height="170"></canvas>
+        <div class="prog" id="cfdProgress"><i></i><span></span></div>
         <div class="legend" id="cfdLegend"></div>
+        <div class="flag ok" id="cfdVerdict" style="margin-top:10px"></div>
         <p class="hint" style="margin-top:8px">
-          Lattice Boltzmann, colouring vorticity. It runs at a Reynolds number around a thousand
-          times lower than the real thing, so read it for whether the shape stays attached or sheds,
-          never for a number. Blunt ends start shedding almost immediately; clean ones hold on.
+          Lattice Boltzmann, with dashes of dye released upstream. The oncoming flow is tilted
+          briefly to knock the wake off centre, because a symmetric body on a symmetric grid will
+          otherwise sit in the symmetric solution forever even when it is unstable. Whether the
+          oscillation then grows or dies is the answer. It settles, measures the shedding period,
+          records exactly one, and loops those frames, so nothing is solving while you watch.
+          It runs at a Reynolds number around a thousand times below the real thing, so plenty of
+          shapes that are steady here would shed in the water.
         </p>
       </div>
 
@@ -1608,12 +1621,12 @@ function drawDragCurve() {
    whether the shape sheds, not for numbers.
    ===================================================================== */
 const LBM = (() => {
-  const NX = 300, NY = 100, Q = 9;
+  const NX = 200, NY = 68, Q = 9;
   const ex = [0, 1, 0, -1, 0, 1, -1, -1, 1];
   const ey = [0, 0, 1, 0, -1, 1, 1, -1, -1];
   const wq = [4 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 36, 1 / 36, 1 / 36, 1 / 36];
   const opp = [0, 3, 4, 1, 2, 7, 8, 5, 6];
-  const TAU = 0.55, U0 = 0.09;
+  const TAU = 0.537, U0 = 0.16;
 
   const n = NX * NY;
   // one array per lattice direction rather than interleaved: the hot loops then walk
@@ -1624,7 +1637,16 @@ const LBM = (() => {
   const solid = new Uint8Array(n);
   const vort = new Float32Array(n);
   const ux = new Float32Array(n), uy = new Float32Array(n);
+  // passive dye, advected semi-Lagrangian. This is what makes flow visualisation
+  // legible: vorticity as a colour wash reads as mush, ribbons of dye rolling into
+  // a vortex read instantly.
+  let dye = new Float32Array(n), dye2 = new Float32Array(n);
   let ready = false, blown = false;
+  // A symmetric body on a symmetric grid at zero incidence with no noise will sit in
+  // the symmetric solution forever, even when that solution is unstable. Karman
+  // shedding only appears once something breaks the symmetry, so the inlet is tilted
+  // briefly during warm-up and then released.
+  let kickUy = 0;
 
   function equilibrium(out, i, rho, vx, vy) {
     const usq = 1.5 * (vx * vx + vy * vy);
@@ -1654,6 +1676,7 @@ const LBM = (() => {
     }
     for (let i = 0; i < n; i++) equilibrium(f, i, 1, solid[i] ? 0 : U0, 0);
     for (let q = 0; q < Q; q++) g[q].set(f[q]);
+    dye.fill(0); dye2.fill(0);
     ready = true; blown = false;
   }
 
@@ -1704,7 +1727,7 @@ const LBM = (() => {
 
     // inlet, outlet and free-stream top and bottom
     for (let j = 0; j < NY; j++) {
-      equilibrium(f, j * NX, 1, U0, 0);
+      equilibrium(f, j * NX, 1, U0, kickUy);
       const last = j * NX + NX - 1, prev = last - 1;
       for (let q = 0; q < Q; q++) f[q][last] = f[q][prev];
     }
@@ -1737,23 +1760,64 @@ const LBM = (() => {
     return vort;
   }
 
-  return { NX, NY, build, step, vorticity, solid,
+  // Semi-Lagrangian advection: trace backwards from each cell and sample where the
+  // dye came from. Unconditionally stable, so the timestep can be as long as a whole
+  // display frame rather than a single lattice step.
+  function advectDye(dt, inkOn) {
+    if (!ready || blown) return;
+    vorticity();                                  // refreshes ux, uy
+    for (let j = 1; j < NY - 1; j++) {
+      for (let i = 1; i < NX - 1; i++) {
+        const id = j * NX + i;
+        if (solid[id]) { dye2[id] = 0; continue; }
+        let px = i - ux[id] * dt, py = j - uy[id] * dt;
+        px = px < 0.5 ? 0.5 : px > NX - 1.5 ? NX - 1.5 : px;
+        py = py < 0.5 ? 0.5 : py > NY - 1.5 ? NY - 1.5 : py;
+        const i0 = px | 0, j0 = py | 0, fx = px - i0, fy = py - j0;
+        const a = j0 * NX + i0;
+        dye2[id] = (dye[a] * (1 - fx) + dye[a + 1] * fx) * (1 - fy)
+                 + (dye[a + NX] * (1 - fx) + dye[a + NX + 1] * fx) * fy;
+      }
+    }
+    const t = dye; dye = dye2; dye2 = t;
+    // Pulsed rather than continuous. A steady flow carries continuous ribbons into a
+    // frozen picture; dashes keep moving along the streamlines and show you the speed
+    // field even when nothing is shedding.
+    for (let j = 0; j < NY; j++) {
+      const band = j % 9;
+      const v = (inkOn && (band === 0 || band === 1)) ? 1 : 0;
+      for (let i = 1; i <= 3; i++) dye[j * NX + i] = v;
+    }
+  }
+
+  // Transverse velocity at a single wake cell, used to find the shedding period.
+  // Computed straight from f rather than by refreshing the whole velocity field,
+  // because this runs every step during warm-up and the full pass is not free.
+  const PROBE_ID = (Math.round(NY * 0.5) + 3) * NX + Math.round(NX * 0.78);
+  function probe() {
+    const i = PROBE_ID;
+    const a0 = f[0][i], a1 = f[1][i], a2 = f[2][i], a3 = f[3][i], a4 = f[4][i],
+          a5 = f[5][i], a6 = f[6][i], a7 = f[7][i], a8 = f[8][i];
+    const rho = a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+    return rho > 1e-6 ? (a2 - a4 + a5 + a6 - a7 - a8) / rho : 0;
+  }
+
+  return { NX, NY, U0, build, step, vorticity, advectDye, probe, solid,
+           setKick(v) { kickUy = v; },
+           get dye() { return dye; },
            get ready() { return ready; }, get blown() { return blown; } };
 })();
 
-let lbmBuf = null;
-function drawCFD() {
-  const cv = document.getElementById("ccfd");
-  if (!cv) return;
-  const { ctx, w, h } = fit(cv);
-  if (!LBM.ready) return;
+let lbmBuf = null, lbmCtx = null;
+function lbmFrame() {
   if (!lbmBuf) {
     lbmBuf = document.createElement("canvas");
     lbmBuf.width = LBM.NX; lbmBuf.height = LBM.NY;
+    lbmCtx = lbmBuf.getContext("2d");
   }
-  const bctx = lbmBuf.getContext("2d");
-  const img = bctx.createImageData(LBM.NX, LBM.NY);
+  const img = lbmCtx.createImageData(LBM.NX, LBM.NY);
   const vt = LBM.vorticity();
+  const dye = LBM.dye;
   // Signed square root against a fixed reference. Vorticity peaks in a thin layer on the
   // surface and is an order of magnitude weaker out in the wake, so a linear map saturates
   // the surface and leaves the interesting part invisible.
@@ -1765,29 +1829,207 @@ function drawCFD() {
       if (LBM.solid[id]) { img.data[p] = 33; img.data[p + 1] = 48; img.data[p + 2] = 56; img.data[p + 3] = 255; continue; }
       const s = vt[id] / REF;
       const v = Math.sign(s) * Math.sqrt(Math.min(1, Math.abs(s)));
-      // teal for one sign, clay for the other, paper in between
-      const r = v > 0 ? 189 * v + 250 * (1 - v) : 45 * -v + 250 * (1 + v);
-      const gg = v > 0 ? 107 * v + 245 * (1 - v) : 114 * -v + 245 * (1 + v);
-      const b = v > 0 ? 63 * v + 235 * (1 - v) : 119 * -v + 235 * (1 + v);
+      // vorticity as a soft wash, teal one way and clay the other
+      let r = v > 0 ? 214 * v + 251 * (1 - v) : 150 * -v + 251 * (1 + v);
+      let gg = v > 0 ? 170 * v + 247 * (1 - v) : 196 * -v + 247 * (1 + v);
+      let b = v > 0 ? 148 * v + 239 * (1 - v) : 199 * -v + 239 * (1 + v);
+      // dye ribbons on top, which is what actually reads as moving water
+      const d = Math.min(1, dye[id] * 1.15);
+      if (d > 0.004) {
+        r += (26 - r) * d; gg += (52 - gg) * d; b += (61 - b) * d;
+      }
       img.data[p] = r; img.data[p + 1] = gg; img.data[p + 2] = b; img.data[p + 3] = 255;
     }
   }
-  bctx.putImageData(img, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(lbmBuf, 0, 0, w, h);
+  lbmCtx.putImageData(img, 0, 0);
+  return img;
+}
+
+// The mask is a staircase at this grid resolution, so the true outline is drawn over
+// the top. The fluid still sees the staircase; the eye does not have to.
+function drawSectionOverlay(ctx, w, h, sec) {
+  if (!sec) return;
+  const cell = 2.6 * sec.chord / LBM.NX;
+  const x0 = sec.uLE - 0.22 * 2.6 * sec.chord;
+  const y0 = -0.5 * LBM.NY * cell;
+  const X = u => (u - x0) / cell / LBM.NX * w;
+  const Y = t => h - (t - y0) / cell / LBM.NY * h;
+  ctx.beginPath();
+  for (let k = 0; k < sec.N; k++) ctx.lineTo(X(sec.u[k]), Y(sec.t[k]));
+  for (let k = sec.N - 1; k >= 0; k--) ctx.lineTo(X(sec.u[k]), Y(-sec.t[k]));
+  ctx.closePath();
+  ctx.fillStyle = "#1a343d"; ctx.fill();
+  ctx.strokeStyle = "#0d1c22"; ctx.lineWidth = 1.2; ctx.stroke();
+}
+
+function blitCFD(img) {
+  const cv = document.getElementById("ccfd");
+  if (!cv) return;
+  const { ctx, w, h } = fit(cv);
+  if (img) {
+    lbmCtx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(lbmBuf, 0, 0, w, h);
+  }
+  drawSectionOverlay(ctx, w, h, Bake.sec);
   if (LBM.blown) text(ctx, "solver went unstable, press reset", w / 2, h / 2,
     { align: "center", colour: "#8c4823", font: "600 12px 'Avenir Next', sans-serif" });
 }
 
-// three independent gates: the play button, whether the canvas is on screen, and
-// whether the tab is frontmost. They must stay separate, or coming back to a
-// backgrounded tab leaves the animation dead.
+function drawCFD() { blitCFD(lbmFrame()); }
+
+/* =====================================================================
+   Bake once, then loop the frames.
+   The flow does not change while you look at it, so there is no reason to keep a
+   solver running. Settle it, find the shedding period, record exactly one period,
+   then play those frames back. Playback is a blit and costs nothing, and recording
+   a whole period means the loop closes on itself instead of jumping.
+   ===================================================================== */
+const Bake = {
+  state: "idle",        // idle | warm | fill | record | play
+  sec: null,
+  frames: [], idx: 0,
+  step: 0, signal: [], period: 0, loop: 0, pulses: 1, every: 1, target: 0,
+  sheds: false,
+  WARM: 3600, PROBE_TAIL: 1200, FILL: 1300, FRAMES: 84, DYE_DT: 3,
+  BUDGET_MS: 13        // work per animation frame, to keep the page responsive
+};
+
+function bakeStart(sec) {
+  Bake.sec = sec;
+  Bake.state = "warm";
+  Bake.frames = []; Bake.idx = 0; Bake.step = 0;
+  Bake.signal = []; Bake.period = 0; Bake.sheds = false;
+  LBM.build(sec);
+}
+
+// Dye is injected on and off across the loop, so one loop holds a whole number of
+// dashes. Combined with recording exactly one shedding period, both the dye and the
+// vortices land back where they started and the loop closes.
+function inkOnAt(step) {
+  const ph = (step % Bake.loop) / Bake.loop * Bake.pulses;
+  return (ph - Math.floor(ph)) < 0.5;
+}
+
+function stdev(a) {
+  if (!a.length) return 0;
+  let m = 0;
+  for (const v of a) m += v;
+  m /= a.length;
+  let s = 0;
+  for (const v of a) s += (v - m) * (v - m);
+  return Math.sqrt(s / a.length);
+}
+
+function bakePlan() {
+  Bake.period = detectPeriod(Bake.signal);
+  // A period alone is not shedding. The kick that breaks the symmetry leaves a
+  // decaying oscillation behind, and a decaying sinusoid autocorrelates just as
+  // happily as a sustained one. Self-sustaining means the amplitude holds up in the
+  // back half of the window rather than dying away.
+  // Measured well after the kick has rung down, the separation is about 140x:
+  // a sustained limit cycle sits near 4e-2, everything decaying is under 3e-4.
+  const amp = stdev(Bake.signal.slice(Math.floor(Bake.signal.length / 2)));
+  Bake.sheds = Bake.period > 0 && amp > 3e-3;
+  if (!Bake.sheds) Bake.period = 0;
+  // steady flow loops on the dye alone, so pick a length that gives sensible dashes
+  Bake.loop = Bake.sheds ? Bake.period : 190;
+  Bake.pulses = Math.max(1, Math.round(Bake.loop * LBM.U0 / 24));
+  Bake.every = Math.max(1, Math.round(Bake.loop / Bake.FRAMES));
+  Bake.target = Math.max(8, Math.round(Bake.loop / Bake.every));
+}
+
+function detectPeriod(sig) {
+  const n = sig.length;
+  if (n < 200) return 0;
+  let mean = 0;
+  for (const v of sig) mean += v;
+  mean /= n;
+  const a = sig.map(v => v - mean);
+  let norm = 0;
+  for (const v of a) norm += v * v;
+  if (norm / n < 1e-11) return 0;                   // steady flow, nothing shedding
+  const maxLag = Math.floor(n / 2);
+  const c = new Float64Array(maxLag);
+  for (let lag = 1; lag < maxLag; lag++) {
+    let s = 0;
+    for (let i = 0; i + lag < n; i++) s += a[i] * a[i + lag];
+    c[lag] = s / norm;
+  }
+  // Autocorrelation is always near 1 at short lags because the signal is smooth, so
+  // the global maximum is meaningless. Walk past the initial decay to the first zero
+  // crossing, and take the highest peak after that.
+  let start = 1;
+  while (start < maxLag && c[start] > 0) start++;
+  if (start >= maxLag) return 0;
+  let best = 0, bestLag = 0;
+  for (let lag = start; lag < maxLag; lag++) if (c[lag] > best) { best = c[lag]; bestLag = lag; }
+  return best > 0.3 ? bestLag : 0;
+}
+
+function bakeTick() {
+  if (Bake.state === "idle" || Bake.state === "play" || LBM.blown) return;
+  const t0 = performance.now();
+  while (performance.now() - t0 < Bake.BUDGET_MS) {
+    if (Bake.state === "warm") {
+      // tilt the oncoming flow briefly to break symmetry, then let go and see whether
+      // the wake sustains an oscillation on its own or damps back out
+      LBM.setKick(Bake.step > 120 && Bake.step < 800 ? 0.6 * LBM.U0 : 0);
+      LBM.step();
+      Bake.step++;
+      // sample the wake over the tail of the warm-up rather than in a separate pass
+      if (Bake.step > Bake.WARM - Bake.PROBE_TAIL) Bake.signal.push(LBM.probe());
+      if (Bake.step >= Bake.WARM) { bakePlan(); Bake.state = "fill"; Bake.step = 0; }
+    } else if (Bake.state === "fill") {
+      // wash dye through the domain with the final phasing, so recording starts with
+      // the whole field already inked rather than with a dye front sweeping across it
+      for (let k = 0; k < Bake.DYE_DT; k++) LBM.step();
+      LBM.advectDye(Bake.DYE_DT, inkOnAt(Bake.step));
+      Bake.step += Bake.DYE_DT;
+      // Do NOT realign the step counter here. Injection is already periodic in
+      // Bake.loop, so recording exactly one loop closes from any starting phase,
+      // whereas jumping the counter puts a phase discontinuity into the dye stream
+      // that then advects downstream and shows up as a seam.
+      if (Bake.step >= Bake.FILL) Bake.state = "record";
+    } else if (Bake.state === "record") {
+      for (let k = 0; k < Bake.every; k++) LBM.step();
+      LBM.advectDye(Bake.every, inkOnAt(Bake.step));
+      Bake.step += Bake.every;
+      Bake.frames.push(lbmFrame());
+      if (Bake.frames.length >= Bake.target) { Bake.state = "play"; Bake.idx = 0; break; }
+    }
+    if (LBM.blown) break;
+  }
+  // show progress against the real total so the bar does not stall
+  const done = Bake.state === "warm" ? Bake.step / Bake.WARM * 0.5
+             : Bake.state === "fill" ? 0.5 + Bake.step / Bake.FILL * 0.35
+             : 0.85 + Bake.frames.length / Math.max(Bake.target, 1) * 0.15;
+  const el = document.getElementById("cfdProgress");
+  if (el) {
+    el.style.display = Bake.state === "play" ? "none" : "block";
+    el.querySelector("i").style.width = (100 * Math.min(1, done)).toFixed(0) + "%";
+    el.querySelector("span").textContent =
+      Bake.state === "record" ? "recording a loop" : "settling the flow";
+  }
+  if (Bake.state !== "record") blitCFD(lbmFrame());
+}
+
 let cfdRAF = null, cfdOn = true, cfdInView = false, cfdPageVisible = !document.hidden;
+let cfdLastDraw = 0;
 function cfdLoop() {
   cfdRAF = requestAnimationFrame(cfdLoop);
-  if (!cfdOn || !cfdInView || !cfdPageVisible || !LBM.ready || LBM.blown) return;
-  for (let k = 0; k < 6; k++) LBM.step();
-  drawCFD();
+  if (!cfdInView || !cfdPageVisible || !LBM.ready) return;
+  if (Bake.state !== "play") { bakeTick(); return; }
+  if (!cfdOn || !Bake.frames.length) return;
+  const now = performance.now();
+  if (now - cfdLastDraw < 33) return;              // 30 fps is plenty for a loop
+  cfdLastDraw = now;
+  blitCFD(Bake.frames[Bake.idx]);
+  Bake.idx = (Bake.idx + 1) % Bake.frames.length;
+  const el = document.getElementById("cfdVerdict");
+  if (el) el.textContent = Bake.sheds
+    ? `Self-sustaining shedding. Nudged off centre, the wake keeps oscillating on its own.`
+    : `Steady at this Reynolds number. Nudged off centre, the wake settles back and stays put.`;
 }
 
 let cfdRebuild = null;
@@ -1795,8 +2037,8 @@ function scheduleCFD() {
   clearTimeout(cfdRebuild);
   cfdRebuild = setTimeout(() => {
     const sec = currentSection();
-    if (sec) { LBM.build(sec); drawCFD(); }
-  }, 220);
+    if (sec) bakeStart(sec);
+  }, 600);
 }
 
 /* =====================================================================
@@ -2024,9 +2266,9 @@ function render() {
     { colour: "#bd6b3f", dash: true, label: "separation" }
   ]);
   legend("cfdLegend", [
-    { colour: "#2d7277", fill: "#2d7277", label: "vorticity one way" },
-    { colour: "#bd6b3f", fill: "#bd6b3f", label: "and the other" },
-    { colour: "#212f38", fill: "#212f38", label: "the section" }
+    { colour: "#1a343d", fill: "#1a343d", label: "dye released upstream" },
+    { colour: "#96c4c7", fill: "#96c4c7", label: "vorticity one way" },
+    { colour: "#d6aa94", fill: "#d6aa94", label: "and the other" }
   ]);
   scheduleCFD();
 
@@ -2219,7 +2461,7 @@ function init() {
   });
   document.getElementById("cfdReset").addEventListener("click", () => {
     const sec = currentSection();
-    if (sec) { LBM.build(sec); drawCFD(); }
+    if (sec) bakeStart(sec);
   });
 
   // only spend cycles on the solver while it is actually on screen
