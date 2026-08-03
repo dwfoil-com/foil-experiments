@@ -142,16 +142,32 @@ inviscid surface velocity, then a Thwaites laminar boundary layer, Michel transi
 entrainment method for the turbulent part, and Squire–Young for profile drag. This is where
 separation shows up.
 
-**The animation.** A D2Q9 lattice Boltzmann solver on a 300 × 100 grid, colouring vorticity. This
-is deliberately not a potential-flow streamline animation, which would have drawn smooth attached
-flow around a square-ended slab and contradicted the entire point of the page. It genuinely
-separates.
+**The animation.** A D2Q9 lattice Boltzmann solver, with dashes of dye released from an upstream
+rake. Deliberately not a potential-flow streamline animation, which would have drawn smooth
+attached flow around a square-ended slab and contradicted the entire point of the page.
 
-It runs at a Reynolds number roughly a thousand times below reality, so it answers "does this shape
-stay attached or shed" and nothing else. It does answer that consistently: integrating wake
-vorticity after 2500 steps ranks the shapes square bar 0.100, the default fuse 0.058, elliptical
-blade 0.029, flow-aligned 0.016, which is the same order the drag model gives from completely
-independent maths.
+Three things in it are worth knowing, because each was a bug first:
+
+- **The flow is kicked off centre on purpose.** A symmetric body on a symmetric grid at zero
+  incidence with no noise will sit in the symmetric solution forever, even when that solution is
+  unstable. Nothing shed until the inlet was briefly tilted during warm-up. Whether the oscillation
+  then grows or dies is the actual measurement.
+- **A period is not shedding.** The kick leaves a decaying oscillation behind, and a decaying
+  sinusoid autocorrelates as happily as a sustained one, so early versions reported shedding for
+  shapes that were plainly damping out. Measured well after the ringdown the separation is about
+  140×: a real limit cycle sits near 4e-2, everything decaying is under 3e-4.
+- **The dye is pulsed, not continuous.** Most of these shapes reach a genuinely steady flow, and
+  continuous dye in a steady field converges to a frozen picture. Dashes keep moving along the
+  streamlines and show the velocity field even when nothing is shedding.
+
+At the Reynolds number it runs at, roughly a thousand times below reality, **only the square bar is
+unstable.** Everything else settles. Plenty of shapes that are steady here would shed in the water,
+so read it for attached-versus-separated and never for a number.
+
+It settles the flow, measures the shedding period, records exactly one period and loops those
+frames, so nothing is solving while you watch. Baking takes a few seconds per shape, shown on a
+progress bar. Moving that into a Web Worker would remove the last of the jank and is the obvious
+next step.
 
 Both drag estimates are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
 downforce, the front wing's downwash, and all three-dimensional relief. Absolute numbers are
