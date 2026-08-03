@@ -44,14 +44,19 @@ From a checkout of the fork:
 ```bash
 npm ci
 npx vite build \
-  --base=/foil-experiments/apps/downwind-sim/ \
+  --base=./ \
   --outDir /path/to/foil-experiments/site/apps/downwind-sim \
   --emptyOutDir
 rm -f /path/to/foil-experiments/site/apps/downwind-sim/paddle.fbx  # unused asset
+git checkout main -- site/apps/downwind-sim/README.md              # --emptyOutDir wipes this
 ```
 
-The `--base` override matters: the fork's `vite.config.ts` targets the author's
-own host path.
+**Use `--base=./`, not an absolute path.** The fork's `vite.config.ts` hardcodes
+`/downwind-sim/`, which targets the author's own host. An absolute base was used
+here at first and broke the moment the site moved to `experiments.dwfoil.com`,
+because `/foil-experiments/...` no longer existed. A relative base resolves
+against wherever the page is served from, so it survives domain and mount-point
+changes.
 
 ## Known limitations here
 
