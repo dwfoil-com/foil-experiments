@@ -564,25 +564,44 @@
     <details>
       <summary>How the drag is estimated</summary>
       <div class="body">
-        <p>Two independent estimates run side by side, because neither alone deserves much trust.</p>
         <p>
-          <b>Headline number.</b> Every parallel cut is built and given a section drag coefficient
-          from flat-plate friction with a Hoerner strut form factor
-          <code>1 + 2(t/c) + 60(t/c)&#8308;</code> on the real wetted perimeter, plus separate blunt
-          leading-edge and blunt base terms. Those integrate across the body.
-          <code>&nu; = 1.05&times;10&#8315;&#8310;</code>&nbsp;m&sup2;/s,
-          <code>&rho; = 1025</code>&nbsp;kg/m&sup3;.
+          The fuse is treated as a slender body at incidence and resolved into two
+          components, which is the standard Allen and Perkins approach.
         </p>
         <p>
-          <b>Section solve.</b> The selected cut goes through a constant-strength source panel
-          method, then Thwaites, Michel transition, Head's method and Squire&ndash;Young. Separation
-          shows up here.
+          <b>Axial.</b> Skin friction over the true wetted surface, taken as the cross-section
+          perimeter times the length, at the fuse's own Reynolds number with a strut form factor on
+          the plan thickness ratio. This barely moves with angle.
         </p>
         <p>
-          <b>The weakest part.</b> On a blunt fuse most of the drag comes from the two blunt-end
-          terms, which are hand-set constants. A strip model also treats the flat top and bottom as
-          bluff bases, when a long flat surface at 8&deg; behaves more like a plate at incidence.
-          Direction is solid. Magnitude is an upper bound.
+          <b>Crossflow.</b> The component <code>V&nbsp;sin&alpha;</code> meets the cross-section as
+          a two-dimensional shape of chord <code>h</code> and thickness <code>w</code>, which is the
+          fuse outline itself. It produces a normal force, and the streamwise part of that force is
+          the drag. Both the dynamic pressure and the projection carry a factor of
+          <code>sin&alpha;</code>, so crossflow drag scales as <code>sin&sup3;&alpha;</code> and
+          disappears quickly as you speed up.
+        </p>
+        <p>
+          The crossflow coefficient comes from the fineness ratio <code>h/w</code>, fitted to
+          elliptic cylinders, multiplied by a penalty for how much width the outline still has at
+          its top and bottom. An ellipse or a cusped aerofoil closes to nothing there and stays
+          attached. A square bar keeps almost its full width and separates off the corners.
+        </p>
+        <p>
+          <b>What this replaced, and why.</b> An earlier version cut the body into streamwise strips
+          and charged each a full-dynamic-pressure base drag. Two things were wrong. The strips are
+          not high-aspect two-dimensional sections: at 600&nbsp;mm long, 38&nbsp;mm tall and
+          10&deg;, the run across the cuts is 142&nbsp;mm against a 219&nbsp;mm chord. And the flat
+          faces were billed at <code>q</code> when the crossflow only reaches them at
+          <code>q&nbsp;sin&sup2;&alpha;</code>, with the force then projecting through another
+          <code>sin&alpha;</code>. That is a factor of about 33 at 10&deg;, and it fell hardest on
+          exactly the blunt shapes the tool was being used to judge.
+        </p>
+        <p>
+          <b>Still approximate.</b> The finite-length crossflow factor is 0.75, within the usual
+          0.7 to 0.8 band but not derived. The corner penalty is a fitted curve, not a measurement.
+          Nose, tail and mast junctions are not modelled at all. Read differences between outlines,
+          treat absolute newtons as indicative.
         </p>
       </div>
     </details>
@@ -602,8 +621,16 @@
           The stiffness floor sets the thinnest width at any height,
           <code>w_min(h) = 8&middot;Iyy*/(h&sup3;&middot;I&#8322;)</code>, and the area ceiling sets
           the tallest height. Everything between is valid, so the search walks that range with your
-          outline held fixed. Height is capped at 55&nbsp;mm for the mast and wing joints. Lateral
-          stiffness is reported but not constrained, and a tall thin blade gives it up quickly.
+          outline held fixed. Height is capped at 55&nbsp;mm for the mast and wing joints.
+        </p>
+        <p>
+          Lateral stiffness <code>Izz &asymp; w&sup3;h</code> is constrained too, and it has to be.
+          Vertical stiffness goes as <code>w&middot;h&sup3;</code> and gets cheaper the taller the
+          fuse, so on its own it drives the search to an absurdly thin blade. Lateral stiffness
+          pulls the other way. Holding all of area, <code>Iyy</code> and <code>Izz</code> at once
+          leaves only the design you already have, so the control sets how much lateral stiffness
+          you are willing to give up. That fraction is the real trade, and the answer moves a lot
+          with it.
         </p>
       </div>
     </details>
@@ -810,22 +837,64 @@ function sectionDrag(sec, V) {
   return { Cd: Cdf + Cdb + Cdn, Cdf, Cdb, Cdn, Re, Cf, FF, tc, c };
 }
 
-function totalDrag(fuse, alphaDeg, V, nSlices) {
-  const A = alphaDeg * Math.PI / 180, sa = Math.sin(A), ca = Math.cos(A);
-  const r = sliceOffsetRange(fuse, sa, ca);
-  const dd = (r.hi - r.lo) / nSlices;
+/* ---------------------------------------------------------------------
+   Fuse drag: axial friction plus crossflow.
+
+   The earlier model cut the body into streamwise strips and charged each one
+   a full-dynamic-pressure base drag. Two things were wrong with that. The
+   strips are not high-aspect 2D sections: at L=600, h=38 and 10 degrees the
+   run across the cuts is 142 mm against a 219 mm chord. And the flat faces
+   were billed at q when the crossflow only reaches them at q sin^2(a), with
+   the resulting force projecting onto drag through another sin(a). That is a
+   factor of 1/sin^2(a), about 33 at 10 degrees.
+
+   Standard slender-body treatment instead (Allen & Perkins): resolve into an
+   axial component V cos(a) carrying skin friction over the real wetted
+   surface, and a crossflow component V sin(a) that sees the y-z outline as a
+   2D shape and produces a normal force. Drag is the streamwise projection of
+   the two.
+   --------------------------------------------------------------------- */
+const ETA_CROSS = 0.75;   // finite-length crossflow factor; ~0.7-0.8 for these fineness ratios
+
+// The crossflow travels along the fuse height, so it meets the cross-section as
+// a shape of chord h and thickness w. This is the fuse outline itself, which is
+// why the outline is still what decides everything.
+function crossflowDrag(fuse) {
+  const a = fuse.w / 2, b = fuse.h / 2;
+  const phi = makePhi(fuse.section);
+  const g = { a, b };
+  const fineness = Math.max(fuse.h / Math.max(fuse.w, 1e-6), 0.3);
+  // smooth-body crossflow coefficient on frontal width, fitted to elliptic
+  // cylinders at Re ~ 5e4: 1.10 at 1:1, 0.63 at 2:1, 0.27 at 8:1
+  const smooth = 0.15 + 0.95 / fineness;
+  // how much width survives at the very top and bottom. Zero for an ellipse or a
+  // cusped aerofoil, large for a square bar; this is what fixes separation.
+  const beta = Math.max(0, Math.min(1, Math.max(phi(-1, g), phi(1, g))));
+  return { Cdc: smooth * (1 + 1.6 * beta), smooth, beta, fineness };
+}
+
+function totalDrag(fuse, alphaDeg, V) {
+  const A = alphaDeg * Math.PI / 180;
+  const sa = Math.abs(Math.sin(A)), ca = Math.cos(A);
   const q = 0.5 * RHO * V * V;
-  let D = 0, wet = 0;
-  for (let i = 0; i < nSlices; i++) {
-    const d = r.lo + dd * (i + 0.5);
-    const sec = buildSection(fuse, alphaDeg, d, 121);
-    if (!sec) continue;
-    const dr = sectionDrag(sec, V);
-    if (!dr) continue;
-    D += dr.Cd * q * (sec.chord / 1000) * (dd / 1000);
-    wet += (sec.perim / 1000) * (dd / 1000);
-  }
-  return { D, wet, power: D * V };
+  const pr = sectionProps(fuse);
+
+  // axial: friction over the true wetted surface, at the fuse's own Reynolds number
+  const Swet = (pr.perimeter / 1000) * (fuse.L / 1000);
+  const ReL = V * (fuse.L / 1000) / NU;
+  const tcPlan = fuse.w / fuse.L;
+  const FFax = 1 + 2 * tcPlan + 60 * Math.pow(tcPlan, 4);
+  const Cf = flatPlateCf(ReL);
+  const Dax = q * Cf * FFax * Swet * ca;
+
+  // crossflow: normal force on the y-z outline, projected onto the flow direction
+  const cf = crossflowDrag(fuse);
+  const Dcr = ETA_CROSS * cf.Cdc * q * sa * sa * sa * (fuse.h / 1000) * (fuse.L / 1000);
+
+  const D = Dax + Dcr;
+  return { D, Dax, Dcr, power: D * V, wet: Swet, Cf, ReL,
+           Cdc: cf.Cdc, beta: cf.beta, fineness: cf.fineness,
+           ReCross: V * sa * (fuse.h / 1000) / NU };
 }
 
 /* =====================================================================
@@ -1149,7 +1218,7 @@ const S = {
   vmin: 4.0, vmax: 6.5,
   designV: 4.0, designAngle: 8,
   cmpB: "rod-round", saved: [], baseline: 0,
-  angleOverride: null, cfdSpeed: 1,
+  angleOverride: null, cfdSpeed: 1, izzKeep: 0.5,
   az: -0.62, el: 0.30, zoom: 1,
   hMax: 55,
   pump: { mass: 80, S: 0.09, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
@@ -1163,33 +1232,45 @@ const S = {
    Iyy  = 2ab³ · ∫ζ²Φ dζ      resists vertical bending (the tail's downforce)
    Izz  = (2/3)a³b · ∫Φ³ dζ   resists side loading
    ===================================================================== */
-function shapeIntegrals(sec) {
-  const key = "SI" + JSON.stringify(sec);
+function shapeIntegrals(sec, aMM, bMM) {
+  // Must use the real half-width and half-height. A rounded rectangle's outline
+  // depends on fillet/a and fillet/b, so evaluating it at a fixed nominal size
+  // described a different shape than the one being drawn.
+  const key = "SI" + JSON.stringify([sec, +aMM.toFixed(3), +bMM.toFixed(3)]);
   if (S.cache.has(key)) return S.cache.get(key);
   const phi = makePhi(sec);
-  const M = 2000;
-  let I0 = 0, I2 = 0, I3 = 0;
-  // fillet-type outlines need a and b; use a nominal 1:1 so the ratio is well defined
-  const g = { a: 6.5, b: 19 };
+  const M = 2000, g = { a: aMM, b: bMM };
+  let I0 = 0, I1 = 0, I2 = 0, I3 = 0, per = 0, prevY = null;
   for (let k = 0; k <= M; k++) {
     const z = -1 + 2 * k / M;
     const p = phi(z, g);
     const wgt = (k === 0 || k === M) ? 0.5 : 1;
-    I0 += wgt * p; I2 += wgt * z * z * p; I3 += wgt * p * p * p;
+    I0 += wgt * p; I1 += wgt * z * p; I2 += wgt * z * z * p; I3 += wgt * p * p * p;
+    const y = p * aMM;
+    if (prevY !== null) per += Math.hypot(y - prevY, 2 * bMM / M);
+    prevY = y;
   }
   const dz = 2 / M;
-  const out = { I0: I0 * dz, I2: I2 * dz, I3: I3 * dz };
+  const out = { I0: I0 * dz, I1: I1 * dz, I2: I2 * dz, I3: I3 * dz,
+                perimeter: 2 * per + 2 * phi(-1, g) * aMM + 2 * phi(1, g) * aMM };
+  if (S.cache.size > 600) S.cache.clear();
   S.cache.set(key, out);
   return out;
 }
 
 function sectionProps(fuse) {
-  const { I0, I2, I3 } = shapeIntegrals(fuse.section);
   const a = fuse.w / 2, b = fuse.h / 2;
+  const { I0, I1, I2, I3, perimeter } = shapeIntegrals(fuse.section, a, b);
+  // I2 is taken about mid-height. Any outline whose centroid sits off centre, an
+  // aerofoil standing on end being the obvious one, needs the parallel-axis term
+  // removing or its bending stiffness is overstated.
+  const I2c = Math.max(I2 - (I0 > 1e-9 ? I1 * I1 / I0 : 0), 1e-9);
   return {
     area: 2 * a * b * I0,
-    Iyy: 2 * a * b * b * b * I2,
-    Izz: (2 / 3) * a * a * a * b * I3
+    Iyy: 2 * a * b * b * b * I2c,
+    Izz: (2 / 3) * a * a * a * b * I3,
+    centroid: b * (I0 > 1e-9 ? I1 / I0 : 0),
+    perimeter
   };
 }
 
@@ -1206,24 +1287,55 @@ function sectionProps(fuse) {
 // and the area ceiling sets the tallest useful height. Anything from the height
 // where those two meet up to the joint limit is a valid design, so walk that range
 // rather than assuming the meeting point is the answer.
-function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16) {
-  const { I0, I2 } = shapeIntegrals(sectionDef);
-  if (!(I0 > 1e-9) || !(I2 > 1e-9)) return [];
-  const hMin = 2 * Math.sqrt((iyyTarget * I0) / (areaTarget * I2));
-  if (!isFinite(hMin) || hMin <= 4) return [];
-  // If even the shortest feasible height breaks the joint limit there is no legal
-  // answer. Return it anyway so the search is not empty, but say so.
-  const over = hMin > hMax;
-  const hi = Math.max(hMin, Math.min(hMax, hMin * 2.2));
-  const out = [];
-  for (let k = 0; k < n; k++) {
-    const h = hMin + (hi - hMin) * (n === 1 ? 0 : k / (n - 1));
-    const w = 8 * iyyTarget / (h * h * h * I2);
-    if (!(w > 1.5) || w > h * 3) continue;
-    if (w * h * I0 / 2 > areaTarget * 1.0001) continue;
-    out.push({ h, w, atLimit: Math.abs(h - hMax) < 1e-6, over });
+// A rounded rectangle's integrals depend on its own size, so the width that hits a
+// stiffness target cannot be written in closed form any more. Two fixed-point passes
+// settle it: guess a width, recompute the outline integrals at that width, repeat.
+function widthForStiffness(sectionDef, h, iyyTarget) {
+  let w = h / 2.5;
+  for (let it = 0; it < 6; it++) {
+    const { I0, I1, I2 } = shapeIntegrals(sectionDef, w / 2, h / 2);
+    const I2c = Math.max(I2 - (I0 > 1e-9 ? I1 * I1 / I0 : 0), 1e-9);
+    const next = 8 * iyyTarget / (h * h * h * I2c);
+    if (!isFinite(next) || next <= 0) return null;
+    if (Math.abs(next - w) < 1e-4) { w = next; break; }
+    w = next;
   }
-  return out;
+  return w;
+}
+
+function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16, izzTarget = 0) {
+  const areaAt = (h, w) => w * h * shapeIntegrals(sectionDef, w / 2, h / 2).I0 / 2;
+  // sweep heights and keep the ones that meet the stiffness floor without going
+  // over the material budget
+  const lo = 8, hi = Math.min(hMax * 1.6, 110);
+  const raw = [];
+  for (let k = 0; k <= 60; k++) {
+    const h = lo + (hi - lo) * k / 60;
+    const w = widthForStiffness(sectionDef, h, iyyTarget);
+    if (!w || w < 1.5 || w > h * 3) continue;
+    // Vertical stiffness alone lets the search run away to an absurdly thin blade,
+    // because Iyy goes as w·h³ and gets cheaper the taller it goes. Lateral
+    // stiffness goes as w³·h and pulls the other way, which is the real trade.
+    const { I3 } = shapeIntegrals(sectionDef, w / 2, h / 2);
+    const izz = (2 / 3) * Math.pow(w / 2, 3) * (h / 2) * I3;
+    if (izzTarget > 0 && izz < izzTarget) continue;
+    raw.push({ h, w, area: areaAt(h, w) });
+  }
+  const ok = raw.filter(r => r.area <= areaTarget * 1.0001);
+  if (!ok.length) return [];
+  const hMin = ok[0].h;
+  const over = hMin > hMax;
+  const top = over ? hMin : Math.min(hMax, hMin * 2.2);
+  const out = [];
+  for (const r of ok) {
+    if (r.h > top + 1e-6) break;
+    out.push({ h: r.h, w: r.w, atLimit: Math.abs(r.h - hMax) < 0.05, over });
+  }
+  if (!out.length && ok.length) {
+    const r = ok[0];
+    out.push({ h: r.h, w: r.w, atLimit: false, over });
+  }
+  return out.filter((_, i) => i % Math.max(1, Math.ceil(out.length / n)) === 0);
 }
 
 function candidateSections() {
@@ -1272,7 +1384,7 @@ function optimise(alphaDeg, V, target) {
   const base = target || sectionProps(S.fuse);
   const sd = S.fuse.section;
   const results = [];
-  for (const size of feasibleHeights(sd, base.area, base.Iyy, S.hMax, 26)) {
+  for (const size of feasibleHeights(sd, base.area, base.Iyy, S.hMax, 26, base.Izz * S.izzKeep)) {
     const cand = Object.assign(cloneFuse(S.fuse),
       { h: +size.h.toFixed(2), w: +size.w.toFixed(2) });
     const D = totalDrag(cand, alphaDeg, V, 11).D;
@@ -2493,31 +2605,32 @@ function updateMetrics(sec) {
   const el = document.getElementById("secMetrics");
   const flag = document.getElementById("secFlag");
   if (!sec) { el.innerHTML = ""; flag.innerHTML = ""; return; }
-  const dr = sectionDrag(sec, S.V);
-  const tot = totalDrag(S.fuse, S.alpha, S.V, 25);
+  const t = totalDrag(S.fuse, S.alpha, S.V);
   el.innerHTML = [
-    metric("Chord", sec.chord.toFixed(0), "mm"),
-    metric("Thickness", sec.tmax.toFixed(1), "mm"),
-    metric("t / c", (100 * sec.tmax / sec.chord).toFixed(1), "%"),
-    metric("Reynolds", (dr.Re / 1e6).toFixed(2), "×10⁶"),
-    metric("Fuse drag", tot.D.toFixed(2), "N"),
-    metric("Power", tot.power.toFixed(1), "W")
+    metric("Streamwise chord", sec.chord.toFixed(0), "mm"),
+    metric("Crossflow C\u1d05", t.Cdc.toFixed(2), ""),
+    metric("Axial drag", t.Dax.toFixed(2), "N"),
+    metric("Crossflow drag", t.Dcr.toFixed(2), "N"),
+    metric("Fuse drag", t.D.toFixed(2), "N"),
+    metric("Power", t.power.toFixed(1), "W")
   ].join("");
   document.getElementById("secNote").textContent =
     `cut at ${S.alpha.toFixed(1)}°, ${mph(S.V).toFixed(1)} mph`;
 
-  const bl = sec.tLE / sec.chord, bt = sec.tTE / sec.chord;
-  let msg = "", cls = "ok";
-  if (bt > 0.01 || bl > 0.01) {
+  const share = 100 * t.Dcr / Math.max(t.D, 1e-9);
+  let msg, cls = "ok";
+  if (t.beta > 0.15) {
     cls = "warn";
-    const parts = [];
-    if (bl > 0.01) parts.push(`a ${sec.tLE.toFixed(1)} mm blunt leading edge`);
-    if (bt > 0.01) parts.push(`a ${sec.tTE.toFixed(1)} mm blunt base`);
-    msg = `This cut has ${parts.join(" and ")}, worth ${(100 * (dr.Cdb + dr.Cdn) / dr.Cd).toFixed(0)}% of
-      the section drag. No amount of surface finish recovers that.`;
+    msg = `The outline still has ${(100 * t.beta).toFixed(0)}% of its width left at the top and
+      bottom, so the crossflow separates off those corners and the crossflow coefficient is
+      ${t.Cdc.toFixed(2)} against ${t.smooth ? t.smooth.toFixed(2) : (t.Cdc / (1 + 1.6 * t.beta)).toFixed(2)}
+      for a rounded outline of the same fineness.`;
   } else {
-    msg = `Closed at both ends, so the section drag is friction and form only. Form factor ${dr.FF.toFixed(2)}.`;
+    msg = `The outline closes to nothing at the top and bottom, so the crossflow stays attached and
+      the coefficient is set by fineness alone.`;
   }
+  msg += ` Crossflow is ${share.toFixed(0)}% of the fuse drag at this angle, and it falls with
+    sin³ of the angle, so it disappears quickly as you speed up.`;
   flag.className = "flag " + cls;
   flag.textContent = msg.replace(/\s+/g, " ");
 }
@@ -2619,7 +2732,9 @@ const RIDE_ADVANCED = [
     set: v => { S.vmin = fromMph(v); if (S.vmax <= S.vmin + 0.2) S.vmax = S.vmin + 0.2; } },
   { id: "vmax", label: "Fastest pump", unit: "mph", min: 7, max: 20, step: 0.5,
     get: () => +mph(S.vmax).toFixed(1),
-    set: v => S.vmax = Math.max(fromMph(v), S.vmin + 0.2) }
+    set: v => S.vmax = Math.max(fromMph(v), S.vmin + 0.2) },
+  { id: "izzKeep", label: "Side stiffness to keep", unit: "%", min: 10, max: 100, step: 5,
+    get: () => Math.round(S.izzKeep * 100), set: v => S.izzKeep = v / 100 }
 ];
 // Typing here overrides the computed angle; the note offers a way back.
 const ANGLE_ROW = [

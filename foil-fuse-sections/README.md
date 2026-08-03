@@ -129,49 +129,52 @@ exactly where the fuse is most badly aligned.
 
 ## Drag estimates
 
-Two independent estimates run side by side, because neither alone deserves much trust.
+**Corrected after an independent review.** An earlier version cut the body into streamwise strips
+and charged each one a full-dynamic-pressure base drag. That was wrong twice over. The strips are
+not high-aspect two-dimensional sections: at 600 mm long, 38 mm tall and 10°, the run across the
+cuts is 142 mm against a 219 mm chord. And the flat faces were billed at `q` when the crossflow only
+reaches them at `q sin²α`, with the resulting force projecting through another `sin α`. That is a
+factor of about 33 at 10°, and it fell hardest on exactly the blunt shapes the tool was judging.
 
-**Headline number.** Every parallel cut across the body is built, each is given a section drag
-coefficient from flat-plate skin friction with a Hoerner strut form factor `1 + 2(t/c) + 60(t/c)⁴`
-applied to the real wetted perimeter, plus separate blunt leading-edge and blunt base terms
-proportional to the cut-off thickness. Those are integrated across the body. Seawater at
-`ν = 1.05×10⁻⁶` m²/s, `ρ = 1025` kg/m³.
+The model now resolves the fuse as a slender body at incidence, which is the standard treatment:
 
-**Section solve.** The selected cut goes through a constant-strength source panel method for the
-inviscid surface velocity, then a Thwaites laminar boundary layer, Michel transition, Head's
-entrainment method for the turbulent part, and Squire–Young for profile drag. This is where
-separation shows up.
+- **Axial**: skin friction over the true wetted surface at the fuse's own Reynolds number, with a
+  strut form factor on the plan thickness ratio. Nearly independent of angle.
+- **Crossflow**: `V sin α` meets the cross-section as a 2D shape of chord `h` and thickness `w`,
+  producing a normal force whose streamwise component is drag. Scales as `sin³α`, so it fades fast
+  with speed. The coefficient comes from fineness ratio `h/w`, fitted to elliptic cylinders, times a
+  penalty for how much width the outline retains at top and bottom.
 
-**The animation.** A D2Q9 lattice Boltzmann solver, with dashes of dye released from an upstream
-rake. Deliberately not a potential-flow streamline animation, which would have drawn smooth
-attached flow around a square-ended slab and contradicted the entire point of the page.
+**Section solve.** The selected streamwise cut still goes through a constant-strength source panel
+method, then Thwaites, Michel transition, Head's method and Squire–Young. That is a genuine 2D solve
+of that shape and is what shows separation.
 
-Three things in it are worth knowing, because each was a bug first:
+**The animation.** A D2Q9 lattice Boltzmann solver with pulsed dye. Notes on how it works, and the
+three bugs found building it, are below.
 
-- **The flow is kicked off centre on purpose.** A symmetric body on a symmetric grid at zero
-  incidence with no noise will sit in the symmetric solution forever, even when that solution is
-  unstable. Nothing shed until the inlet was briefly tilted during warm-up. Whether the oscillation
-  then grows or dies is the actual measurement.
-- **A period is not shedding.** The kick leaves a decaying oscillation behind, and a decaying
-  sinusoid autocorrelates as happily as a sustained one, so early versions reported shedding for
-  shapes that were plainly damping out. Measured well after the ringdown the separation is about
-  140×: a real limit cycle sits near 4e-2, everything decaying is under 3e-4.
-- **The dye is pulsed, not continuous.** Most of these shapes reach a genuinely steady flow, and
-  continuous dye in a steady field converges to a frozen picture. Dashes keep moving along the
-  streamlines and show the velocity field even when nothing is shedding.
+**Still approximate.** The finite-length crossflow factor is 0.75, inside the usual 0.7–0.8 band but
+not derived. The corner penalty is a fitted curve, not a measurement. Nose, tail and mast junctions
+are not modelled. Read differences between outlines; treat absolute newtons as indicative.
 
-At the Reynolds number it runs at, roughly a thousand times below reality, **only the square bar is
-unstable.** Everything else settles. Plenty of shapes that are steady here would shed in the water,
-so read it for attached-versus-separated and never for a number.
+## What changed, and what it cost
 
-It settles the flow, measures the shedding period, records exactly one period and loops those
-frames, so nothing is solving while you watch. Baking takes a few seconds per shape, shown on a
-progress bar. Moving that into a Web Worker would remove the last of the jank and is the obvious
-next step.
+The headline number moved a long way under review:
 
-Both drag estimates are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
-downforce, the front wing's downwash, and all three-dimensional relief. Absolute numbers are
-indicative. **Differences between shapes at the same angle are the useful output.**
+| Claim | Before | After |
+|---|---|---|
+| Aerofoil vs optimised rounded rect | 64% less drag | **21% less drag** |
+| Typical fuse at 17.4°, 8.9 mph | ~26 N | **~9 N** |
+
+Two outright bugs were also found and fixed. `shapeIntegrals` evaluated every outline at a hardcoded
+nominal size, so a rounded rectangle's area and stiffness described a different shape than the one
+being drawn (correct only at 38 × 13). And the second moment was taken about mid-height rather than
+the centroid, which overstated the stiffness of any outline whose centroid sits off centre — an
+aerofoil standing on end being exactly that case, by 11%.
+
+The optimiser also now constrains lateral stiffness. Vertical stiffness alone goes as `w·h³` and
+gets cheaper the taller the fuse, so it drove the search to a 6.5 mm wide blade. Holding area, `Iyy`
+and `Izz` all at once leaves only the design you started with, so how much lateral stiffness you
+will give up is exposed as a control. The answer moves a lot with it.
 
 ## What it does not do yet
 
