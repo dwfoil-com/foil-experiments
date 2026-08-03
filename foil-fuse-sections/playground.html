@@ -91,6 +91,21 @@
   .flag.ok { background: rgba(45,114,119,.11); color: #1d5559; }
   .flag.warn { background: rgba(189,107,63,.14); color: #8c4823; }
 
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+  .legend .li { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .lk { width: 13px; height: 9px; border-radius: 3px; border: 1.5px solid transparent; flex: none; }
+  .legend .lk.dash {
+    height: 0; border: 0; border-top: 2px dashed var(--c); border-radius: 0; width: 15px;
+  }
+
+  .opt { display: grid; gap: 12px; }
+  .opt-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .opt-result { background: rgba(189,107,63,.09); border: 1px solid rgba(189,107,63,.25);
+                border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.55; }
+  .opt-result b { font-weight: 600; }
+  .inline-sel { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .inline-sel select { width: auto; min-width: 150px; padding: 5px 8px; font-size: 12px; }
+
   details { font-size: 13px; }
   details summary { cursor: pointer; font-weight: 600; font-size: 13px; }
   details .body { margin-top: 10px; color: var(--muted); line-height: 1.6; display: grid; gap: 10px; }
@@ -152,7 +167,7 @@
 
         <div class="row">
           <label for="slicePos">Slice position <span class="val" id="slicePosV"></span></label>
-          <input type="range" id="slicePos" min="0" max="1" step="0.005" value="0.5">
+          <input type="range" id="slicePos" min="0.02" max="0.98" step="0.005" value="0.5">
           <div class="hint">Which of the parallel streamwise cuts to inspect. 0 is nearest the nose, 1 nearest the tail.</div>
         </div>
 
@@ -199,10 +214,30 @@
         </div>
       </div>
 
-      <div class="card stack" style="gap:10px">
-        <h3>Compare against</h3>
-        <div class="seg" id="compareSeg"></div>
-        <div class="hint">Shown in the section overlay and the drag curve.</div>
+      <div class="card stack" style="gap:12px">
+        <h3>Pump cycle</h3>
+        <div class="row">
+          <label for="pmass">Rider + gear <span class="val" id="pmassV"></span></label>
+          <input type="range" id="pmass" min="50" max="120" step="1" value="76">
+        </div>
+        <div class="row">
+          <label for="pwing">Front wing area <span class="val" id="pwingV"></span></label>
+          <input type="range" id="pwing" min="0.06" max="0.30" step="0.005" value="0.135">
+        </div>
+        <div class="row">
+          <label for="pfreq">Pump frequency <span class="val" id="pfreqV"></span></label>
+          <input type="range" id="pfreq" min="0.8" max="3.2" step="0.1" value="2.0">
+        </div>
+        <div class="row">
+          <label for="pheave">Heave amplitude <span class="val" id="pheaveV"></span></label>
+          <input type="range" id="pheave" min="0.01" max="0.20" step="0.005" value="0.08">
+        </div>
+        <div class="row">
+          <label for="pfeather">Feathering <span class="val" id="pfeatherV"></span></label>
+          <input type="range" id="pfeather" min="0" max="0.95" step="0.05" value="0.55">
+          <div class="hint">How much of the flight-path swing the rider takes out by pitching with the
+            stroke. 0 is a rigid rider, 1 would hold a perfectly constant angle.</div>
+        </div>
       </div>
     </div>
 
@@ -213,9 +248,10 @@
         <div class="card">
           <div class="canvas-head">
             <h2>The fuse and the cut</h2>
-            <span class="note">drag to rotate</span>
+            <span class="note">drag to rotate, scroll to zoom</span>
           </div>
           <canvas id="c3d" height="340"></canvas>
+          <div class="legend" id="d3Legend"></div>
         </div>
         <div class="card">
           <div class="canvas-head">
@@ -223,17 +259,48 @@
             <span class="note">flow arrives at the pump angle</span>
           </div>
           <canvas id="cside" height="340"></canvas>
+          <div class="legend" id="sideLegend"></div>
         </div>
       </div>
 
       <div class="card">
         <div class="canvas-head">
           <h2>The section the water flows over</h2>
-          <span class="note">drawn to scale, chord shown horizontally</span>
+          <span class="inline-sel">
+            <label for="baseline" style="font-weight:400">compare with</label>
+            <select id="baseline"></select>
+          </span>
         </div>
         <canvas id="csec" height="230"></canvas>
+        <div class="legend" id="secLegend"></div>
         <div class="metrics" style="margin-top:14px" id="secMetrics"></div>
         <div id="secFlag"></div>
+      </div>
+
+      <div class="card opt">
+        <div class="opt-head">
+          <h2 style="flex:1">Best section for this angle</h2>
+          <button class="btn" id="optRun">Optimise</button>
+          <button class="btn ghost" id="optApply" disabled>Use it</button>
+          <button class="btn ghost" id="optClear" disabled>Clear</button>
+        </div>
+        <p class="hint">
+          Holds vertical bending stiffness and cross-sectional area at least as good as the fuse you
+          have, then finds the outline with the lowest drag. Those two constraints pin the height and
+          width exactly for any candidate outline, because area goes as <code>h·w</code> and stiffness
+          goes as <code>w·h³</code>, so the only real choice left is the shape itself.
+        </p>
+        <div id="optOut"></div>
+      </div>
+
+      <div class="card">
+        <div class="canvas-head">
+          <h2>What angle does the fuse actually see?</h2>
+          <span class="note" id="pumpNote"></span>
+        </div>
+        <canvas id="cpump" height="220"></canvas>
+        <div class="metrics" style="margin-top:14px" id="pumpMetrics"></div>
+        <div class="flag ok" id="pumpFlag"></div>
       </div>
 
       <div class="grid2">
@@ -243,6 +310,7 @@
             <span class="note">source panel + integral BL</span>
           </div>
           <canvas id="ccp" height="260"></canvas>
+          <div class="legend" id="cpLegend"></div>
           <div id="cfdFlag"></div>
         </div>
         <div class="card">
@@ -251,6 +319,7 @@
             <span class="note" id="dragNote"></span>
           </div>
           <canvas id="cdrag" height="260"></canvas>
+          <div class="legend" id="dragLegend"></div>
         </div>
       </div>
 
@@ -865,13 +934,151 @@ function cloneFuse(f) { return JSON.parse(JSON.stringify(f)); }
    ===================================================================== */
 const S = {
   fuse: cloneFuse(LIBRARY[5]),
-  alpha: 10,
+  alpha: 8,
   V: 4.5,
   slicePos: 0.5,
-  compare: new Set(["rod-round", "bar-square", "blade-ellipse", "flow-aligned"]),
-  az: -0.62, el: 0.30,
+  baseline: "rod-round",
+  az: -0.62, el: 0.30, zoom: 1,
+  hMax: 55,             // tallest fuse the mast and wing joints will take, mm
+  pump: { mass: 76, S: 0.135, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
+  optimum: null,
   cache: new Map()
 };
+
+/* =====================================================================
+   Section properties: area and second moments from the outline function
+   A    = 2ab · ∫Φ dζ
+   Iyy  = 2ab³ · ∫ζ²Φ dζ      resists vertical bending (the tail's downforce)
+   Izz  = (2/3)a³b · ∫Φ³ dζ   resists side loading
+   ===================================================================== */
+function shapeIntegrals(sec) {
+  const key = "SI" + JSON.stringify(sec);
+  if (S.cache.has(key)) return S.cache.get(key);
+  const phi = makePhi(sec);
+  const M = 2000;
+  let I0 = 0, I2 = 0, I3 = 0;
+  // fillet-type outlines need a and b; use a nominal 1:1 so the ratio is well defined
+  const g = { a: 6.5, b: 19 };
+  for (let k = 0; k <= M; k++) {
+    const z = -1 + 2 * k / M;
+    const p = phi(z, g);
+    const wgt = (k === 0 || k === M) ? 0.5 : 1;
+    I0 += wgt * p; I2 += wgt * z * z * p; I3 += wgt * p * p * p;
+  }
+  const dz = 2 / M;
+  const out = { I0: I0 * dz, I2: I2 * dz, I3: I3 * dz };
+  S.cache.set(key, out);
+  return out;
+}
+
+function sectionProps(fuse) {
+  const { I0, I2, I3 } = shapeIntegrals(fuse.section);
+  const a = fuse.w / 2, b = fuse.h / 2;
+  return {
+    area: 2 * a * b * I0,
+    Iyy: 2 * a * b * b * b * I2,
+    Izz: (2 / 3) * a * a * a * b * I3
+  };
+}
+
+/* =====================================================================
+   Optimiser
+   Hold vertical bending stiffness and cross-sectional area (a mass proxy)
+   at least as good as the current fuse, then minimise drag. Because
+   A ∝ ab·I0 and Iyy ∝ ab³·I2, fixing both pins h and w exactly for any
+   candidate outline, so there is nothing to search over but the outline.
+   ===================================================================== */
+// Feasible sizes for one outline. With A = w·h·I0/2 and Iyy = w·h³·I2/8, the
+// stiffness floor sets the thinnest allowable width at any height,
+//     w_min(h) = 8·Iyy* / (h³·I2),
+// and the area ceiling sets the tallest useful height. Anything from the height
+// where those two meet up to the joint limit is a valid design, so walk that range
+// rather than assuming the meeting point is the answer.
+function feasibleHeights(sectionDef, areaTarget, iyyTarget, hMax, n = 16) {
+  const { I0, I2 } = shapeIntegrals(sectionDef);
+  if (!(I0 > 1e-9) || !(I2 > 1e-9)) return [];
+  const hMin = 2 * Math.sqrt((iyyTarget * I0) / (areaTarget * I2));
+  if (!isFinite(hMin) || hMin <= 4) return [];
+  const hi = Math.max(hMin, Math.min(hMax, hMin * 2.2));
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const h = hMin + (hi - hMin) * (n === 1 ? 0 : k / (n - 1));
+    const w = 8 * iyyTarget / (h * h * h * I2);
+    if (!(w > 1.5) || w > h * 3) continue;
+    if (w * h * I0 / 2 > areaTarget * 1.0001) continue;
+    out.push({ h, w, atLimit: Math.abs(h - hMax) < 1e-6 });
+  }
+  return out;
+}
+
+function candidateSections() {
+  const out = [];
+  for (let n = 2; n <= 6.01; n += 0.5) out.push({ type: "superellipse", n: +n.toFixed(1) });
+  out.push({ type: "naca", flip: false });
+  out.push({ type: "naca", flip: true });
+  for (const fr of [2, 3, 4, 5, 6]) out.push({ type: "rect", fillet: fr });
+  return out;
+}
+
+function optimise(alphaDeg, V) {
+  const base = sectionProps(S.fuse);
+  const results = [];
+  for (const sd of candidateSections()) {
+    for (const size of feasibleHeights(sd, base.area, base.Iyy, S.hMax)) {
+      const cand = Object.assign(cloneFuse(S.fuse),
+        { section: sd, h: +size.h.toFixed(2), w: +size.w.toFixed(2) });
+      const D = totalDrag(cand, alphaDeg, V, 11).D;
+      if (!isFinite(D)) continue;
+      results.push({ fuse: cand, D, capped: size.atLimit, props: sectionProps(cand) });
+    }
+  }
+  results.sort((a, b) => a.D - b.D);
+  // refine the winner at full resolution so the headline number matches the rest of the page
+  if (results[0]) results[0].D = totalDrag(results[0].fuse, alphaDeg, V, 25).D;
+  return { best: results[0] || null, all: results, base };
+}
+
+/* =====================================================================
+   Pump cycle
+   The fuse angle relative to the water is theta - gamma, which is also the
+   wing's angle of attack. Trim comes straight from the lift equation; the
+   pump adds a flight-path swing that the rider only partly feathers out.
+   Cross-checked against foil-rl-pump/python-rl/foil_env/foil_physics.py,
+   which gives 8.95 deg at 3.5 m/s and 5.44 deg at 4.5 m/s for its rig.
+   ===================================================================== */
+function liftSlope(AR) { return 2 * Math.PI / (1 + 2 / AR); }
+
+function trimAngle(V, p) {
+  const W = p.mass * 9.81;
+  const Cl = 2 * W / (RHO * p.S * V * V);
+  const a = liftSlope(p.AR);
+  return Math.min(13, Cl / a * 180 / Math.PI);   // clamp at stall
+}
+
+function pumpTrace(V, p, n = 121) {
+  const th = trimAngle(V, p);
+  const omega = 2 * Math.PI * p.f;
+  const gammaAmp = Math.atan2(p.heave * omega, V) * 180 / Math.PI;
+  const swing = (1 - p.feather) * gammaAmp;
+  const t = [], al = [];
+  for (let k = 0; k < n; k++) {
+    const ph = 2 * Math.PI * k / (n - 1);
+    t.push(k / (n - 1));
+    al.push(th + swing * Math.sin(ph));
+  }
+  return { t, alpha: al, trim: th, swing, gammaAmp,
+           min: Math.min(...al), max: Math.max(...al) };
+}
+
+function cycleDrag(fuse, V, p) {
+  const tr = pumpTrace(V, p, 25);
+  let sum = 0, wsum = 0, angleWeighted = 0;
+  for (const a of tr.alpha) {
+    const D = totalDrag(fuse, Math.abs(a), V, 13).D;
+    sum += D; wsum += 1; angleWeighted += D * Math.abs(a);
+  }
+  return { mean: sum / wsum, effAngle: angleWeighted / sum, trace: tr };
+}
 
 /* =====================================================================
    Canvas helpers
@@ -889,6 +1096,17 @@ function fit(cv) {
   ctx.clearRect(0, 0, w, h);
   return { ctx, w, h };
 }
+function legend(id, items) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = items.map(it => {
+    const key = it.dash
+      ? `<span class="lk dash" style="--c:${it.colour}"></span>`
+      : `<span class="lk" style="background:${it.fill || it.colour};border-color:${it.colour}"></span>`;
+    return `<span class="li">${key}${it.label}</span>`;
+  }).join("");
+}
+
 function text(ctx, str, x, y, opt = {}) {
   ctx.save();
   ctx.fillStyle = opt.colour || "#5f6d73";
@@ -933,7 +1151,7 @@ function draw3D() {
   const rt = [-Math.sin(az), Math.cos(az), 0];
   const up = [-Math.sin(el) * Math.cos(az), -Math.sin(el) * Math.sin(az), Math.cos(el)];
   const cen = [f.L / 2, 0, 0];
-  const scale = Math.min(w / (f.L * 1.25), h / (f.h * 4.2));
+  const scale = Math.min(w / (f.L * 1.25), h / (f.h * 4.2)) * S.zoom;
   const proj = (p) => {
     const q = [p[0] - cen[0], p[1] - cen[1], p[2] - cen[2]];
     return [w / 2 + (q[0] * rt[0] + q[1] * rt[1] + q[2] * rt[2]) * scale,
@@ -941,13 +1159,26 @@ function draw3D() {
             q[0] * fw[0] + q[1] * fw[1] + q[2] * fw[2]];
   };
 
+  // cutting plane: normal N, offset d, so that p.N = d on the plane
+  const dR = sliceOffsetRange(f, sa, ca);
+  const d = dR.lo + (dR.hi - dR.lo) * S.slicePos;
+  const N = [-sa, 0, ca];
+  const signedDist = p => p[0] * N[0] + p[2] * N[2] - d;
+  const planePt = (u, v) => [u * ca - d * sa, v, u * sa + d * ca];
+  // hide whichever half sits between the camera and the cut, so the cut face always
+  // faces the viewer and rotating never buries it
+  const camSide = Math.sign(N[0] * fw[0] + N[2] * fw[2]) || 1;
+
   const rings = fuseMesh(f, 54, 26);
-  const faces = [];
+  const solid = [], ghost = [];
   const light = [0.35, 0.55, 0.76];
   for (let i = 0; i < rings.length - 1; i++) {
     const r0 = rings[i], r1 = rings[i + 1];
     for (let k = 0; k < r0.length - 1; k++) {
       const quad = [r0[k], r0[k + 1], r1[k + 1], r1[k]];
+      const cx = (quad[0][0] + quad[1][0] + quad[2][0] + quad[3][0]) / 4;
+      const cz = (quad[0][2] + quad[1][2] + quad[2][2] + quad[3][2]) / 4;
+      const hidden = Math.sign(cx * N[0] + cz * N[2] - d) === camSide;
       const ux = [quad[1][0] - quad[0][0], quad[1][1] - quad[0][1], quad[1][2] - quad[0][2]];
       const vx = [quad[3][0] - quad[0][0], quad[3][1] - quad[0][1], quad[3][2] - quad[0][2]];
       const n = [ux[1] * vx[2] - ux[2] * vx[1], ux[2] * vx[0] - ux[0] * vx[2], ux[0] * vx[1] - ux[1] * vx[0]];
@@ -956,52 +1187,75 @@ function draw3D() {
       const pts = quad.map(proj);
       const depth = (pts[0][2] + pts[1][2] + pts[2][2] + pts[3][2]) / 4;
       const shade = 0.30 + 0.70 * lam;
-      faces.push({ pts, depth, fill: `rgb(${Math.round(78 + 120 * shade)},${Math.round(112 + 108 * shade)},${Math.round(116 + 104 * shade)})` });
+      const fill = `rgb(${Math.round(78 + 120 * shade)},${Math.round(112 + 108 * shade)},${Math.round(116 + 104 * shade)})`;
+      (hidden ? ghost : solid).push({ pts, depth, fill });
     }
   }
 
-  // cutting plane
-  const dR = sliceOffsetRange(f, sa, ca);
-  const d = dR.lo + (dR.hi - dR.lo) * S.slicePos;
-  const uSpan = [-f.h, f.L * ca + f.h];
-  const vSpan = f.h * 0.9;
-  const planePt = (u, v) => [u * ca - d * sa, v, u * sa + d * ca];
-  const planeQuad = [planePt(uSpan[0], -vSpan), planePt(uSpan[1], -vSpan),
-                     planePt(uSpan[1], vSpan), planePt(uSpan[0], vSpan)].map(proj);
-  faces.push({
-    pts: planeQuad, depth: (planeQuad[0][2] + planeQuad[2][2]) / 2 - 1e-3,
-    fill: "rgba(189,107,63,0.20)", stroke: "rgba(189,107,63,0.55)"
-  });
+  const paint = (list, alpha) => {
+    ctx.globalAlpha = alpha;
+    for (const fc of list) {
+      ctx.beginPath();
+      ctx.moveTo(fc.pts[0][0], fc.pts[0][1]);
+      for (let i = 1; i < fc.pts.length; i++) ctx.lineTo(fc.pts[i][0], fc.pts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = fc.fill; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
 
-  faces.sort((a, b) => a.depth - b.depth);
-  for (const fc of faces) {
-    ctx.beginPath();
-    ctx.moveTo(fc.pts[0][0], fc.pts[0][1]);
-    for (let i = 1; i < fc.pts.length; i++) ctx.lineTo(fc.pts[i][0], fc.pts[i][1]);
-    ctx.closePath();
-    ctx.fillStyle = fc.fill; ctx.fill();
-    if (fc.stroke) { ctx.strokeStyle = fc.stroke; ctx.lineWidth = 1; ctx.stroke(); }
-  }
+  solid.sort((a, b) => a.depth - b.depth);
+  ghost.sort((a, b) => a.depth - b.depth);
+  paint(solid, 1);
 
-  // the slice outline itself, drawn on top
+  // the exposed cut face
   const sec = currentSection();
   if (sec) {
-    ctx.beginPath();
-    let started = false;
     const ring = [];
     for (let k = 0; k < sec.N; k++) ring.push(planePt(sec.u[k], sec.t[k]));
     for (let k = sec.N - 1; k >= 0; k--) ring.push(planePt(sec.u[k], -sec.t[k]));
-    for (const p of ring) {
-      const q = proj(p);
-      if (!started) { ctx.moveTo(q[0], q[1]); started = true; } else ctx.lineTo(q[0], q[1]);
-    }
+    ctx.beginPath();
+    ring.forEach((p, i) => { const q = proj(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
     ctx.closePath();
-    ctx.fillStyle = "rgba(255,247,235,0.82)"; ctx.fill();
-    ctx.strokeStyle = "#bd6b3f"; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.fillStyle = "rgba(189,107,63,0.55)"; ctx.fill();
+    ctx.strokeStyle = "#a4562f"; ctx.lineWidth = 1.8; ctx.stroke();
   }
 
-  text(ctx, "nose", ...proj([0, 0, f.h * 1.4]).slice(0, 2), { align: "center" });
-  text(ctx, "tail", ...proj([f.L, 0, f.h * 1.4]).slice(0, 2), { align: "center" });
+  // ghost of the removed half, so the whole fuse is still readable
+  paint(ghost, 0.13);
+
+  // dashed outline of the cutting plane, extended past the fuse
+  const uSpan = [-f.h * 1.1, f.L * ca + f.h * 1.1];
+  const vSpan = f.w * 1.9;
+  const pq = [planePt(uSpan[0], -vSpan), planePt(uSpan[1], -vSpan),
+              planePt(uSpan[1], vSpan), planePt(uSpan[0], vSpan)].map(proj);
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "rgba(189,107,63,0.75)"; ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  pq.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.closePath(); ctx.stroke();
+  ctx.restore();
+
+  // flow direction arrow, lying in the cutting plane
+  if (sec) {
+    const a0 = proj(planePt(sec.uLE - f.h * 0.75, 0));
+    const a1 = proj(planePt(sec.uLE - f.h * 0.12, 0));
+    ctx.strokeStyle = "#bd6b3f"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
+    const ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]);
+    ctx.beginPath();
+    ctx.moveTo(a1[0], a1[1]);
+    ctx.lineTo(a1[0] - 8 * Math.cos(ang - 0.42), a1[1] - 8 * Math.sin(ang - 0.42));
+    ctx.moveTo(a1[0], a1[1]);
+    ctx.lineTo(a1[0] - 8 * Math.cos(ang + 0.42), a1[1] - 8 * Math.sin(ang + 0.42));
+    ctx.stroke();
+    text(ctx, "flow", a0[0] - 4, a0[1] - 6, { align: "right", colour: "#bd6b3f",
+      font: "600 11px 'Avenir Next', sans-serif" });
+  }
+
+  text(ctx, "nose", ...proj([0, 0, f.h * 1.5]).slice(0, 2), { align: "center" });
+  text(ctx, "tail", ...proj([f.L, 0, f.h * 1.5]).slice(0, 2), { align: "center" });
 }
 
 /* =====================================================================
@@ -1075,45 +1329,55 @@ function drawSection() {
   if (!sec) { text(ctx, "no material at this cut", w / 2, h / 2, { align: "center" }); return; }
 
   const pad = 40;
-  const others = [...S.compare].map(id => LIBRARY.find(x => x.id === id)).filter(Boolean);
-  let maxChord = sec.chord, maxT = sec.tmax;
-  const cmp = [];
-  for (const o of others) {
-    const s2 = sectionFor(o, S.alpha, 0.5);
-    if (s2) { cmp.push({ f: o, s: s2 }); maxChord = Math.max(maxChord, s2.chord); maxT = Math.max(maxT, s2.tmax); }
+  const layers = [];
+  const baseF = LIBRARY.find(x => x.id === S.baseline);
+  if (baseF && baseF.id !== S.fuse.id) {
+    const s2 = sectionFor(baseF, S.alpha, S.slicePos);
+    if (s2) layers.push({ s: s2, colour: "#8b959a", label: baseF.name, dash: [5, 4] });
   }
+  if (S.optimum) {
+    const s3 = sectionFor(S.optimum.fuse, S.alpha, S.slicePos);
+    if (s3) layers.push({ s: s3, colour: "#bd6b3f", label: "optimised", dash: [] });
+  }
+  let maxChord = sec.chord, maxT = sec.tmax;
+  for (const l of layers) { maxChord = Math.max(maxChord, l.s.chord); maxT = Math.max(maxT, l.s.tmax); }
   const scale = Math.min((w - 2 * pad) / maxChord, (h - 2 * pad) / (maxT * 2.6));
-  const X = u => pad + (u - sec.uLE) * scale;
   const Y = t => h / 2 - t * scale;
 
   // chord axis
   ctx.strokeStyle = "rgba(21,34,41,0.16)"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad * 0.5, h / 2); ctx.stroke();
 
-  const outline = (s, ox) => {
+  const outline = s => {
     ctx.beginPath();
-    for (let k = 0; k < s.N; k++) ctx.lineTo(pad + (s.u[k] - s.uLE) * scale + ox, Y(s.t[k]));
-    for (let k = s.N - 1; k >= 0; k--) ctx.lineTo(pad + (s.u[k] - s.uLE) * scale + ox, Y(-s.t[k]));
+    for (let k = 0; k < s.N; k++) ctx.lineTo(pad + (s.u[k] - s.uLE) * scale, Y(s.t[k]));
+    for (let k = s.N - 1; k >= 0; k--) ctx.lineTo(pad + (s.u[k] - s.uLE) * scale, Y(-s.t[k]));
     ctx.closePath();
   };
 
-  for (const c of cmp) {
-    if (c.f.id === S.fuse.id) continue;
-    outline(c.s, 0);
-    ctx.strokeStyle = c.f.colour + "88"; ctx.lineWidth = 1.2; ctx.stroke();
+  for (const l of layers) {
+    ctx.save();
+    ctx.setLineDash(l.dash);
+    outline(l.s);
+    ctx.strokeStyle = l.colour; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
   }
-  outline(sec, 0);
+  outline(sec);
   ctx.fillStyle = "rgba(45,114,119,0.22)"; ctx.fill();
-  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 2.2; ctx.stroke();
 
   // annotations
   const xt = pad + sec.tmaxAt * sec.chord * scale;
   ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(21,34,41,0.3)";
   ctx.beginPath(); ctx.moveTo(xt, Y(sec.tmax / 2)); ctx.lineTo(xt, Y(-sec.tmax / 2)); ctx.stroke();
   ctx.setLineDash([]);
-  text(ctx, `t = ${sec.tmax.toFixed(1)} mm`, xt + 5, Y(sec.tmax / 2) - 5);
+  text(ctx, `t = ${sec.tmax.toFixed(1)} mm at ${(100 * sec.tmaxAt).toFixed(0)}%`, xt + 5, Y(sec.tmax / 2) - 5);
   text(ctx, "flow →", pad, h - 12, { colour: "#bd6b3f", font: "600 11px 'Avenir Next', sans-serif" });
   text(ctx, `chord ${sec.chord.toFixed(0)} mm`, w - pad * 0.5, h - 12, { align: "right" });
+
+  legend("secLegend", [
+    { colour: "#2d7277", fill: "rgba(45,114,119,0.22)", label: `${S.fuse.name} — the fuse you are looking at` }
+  ].concat(layers.map(l => ({ colour: l.colour, dash: l.dash.length > 0, label: l.label }))));
 }
 
 /* =====================================================================
@@ -1198,17 +1462,24 @@ function drawDragCurve() {
   for (let a = 0; a <= 24; a += 1.5) angles.push(a);
 
   const series = [];
-  const ids = new Set([...S.compare, S.fuse.id]);
-  for (const id of ids) {
-    const base = LIBRARY.find(x => x.id === id);
-    const f = (id === S.fuse.id) ? S.fuse : base;
-    if (!f) continue;
-    const ys = angles.map(a => totalDrag(f, a, S.V, 17).D);
-    series.push({ id, colour: (base ? base.colour : "#2d7277"), ys, me: id === S.fuse.id });
+  for (const lib of LIBRARY) {
+    if (lib.id === S.fuse.id || lib.id === S.baseline) continue;
+    series.push({ colour: "rgba(21,34,41,0.18)", width: 1, ys: angles.map(a => totalDrag(lib, a, S.V, 13).D) });
   }
+  const baseF = LIBRARY.find(x => x.id === S.baseline);
+  if (baseF && baseF.id !== S.fuse.id) {
+    series.push({ colour: "#8b959a", width: 1.8, dash: [5, 4],
+                  ys: angles.map(a => totalDrag(baseF, a, S.V, 13).D) });
+  }
+  if (S.optimum) {
+    series.push({ colour: "#bd6b3f", width: 2,
+                  ys: angles.map(a => totalDrag(S.optimum.fuse, a, S.V, 13).D) });
+  }
+  series.push({ colour: "#2d7277", width: 2.8, ys: angles.map(a => totalDrag(S.fuse, a, S.V, 13).D) });
+
   let dMax = 0;
   for (const s of series) for (const y of s.ys) dMax = Math.max(dMax, y);
-  dMax = Math.max(dMax, 0.5) * 1.12;
+  dMax = Math.min(Math.max(dMax, 0.5) * 1.12, 14);
 
   const X = a => pad.l + a / 24 * (w - pad.l - pad.r);
   const Y = d => h - pad.b - d / dMax * (h - pad.t - pad.b);
@@ -1223,20 +1494,82 @@ function drawDragCurve() {
   text(ctx, "N", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
 
   for (const s of series) {
+    ctx.save();
+    if (s.dash) ctx.setLineDash(s.dash);
     ctx.beginPath();
-    s.ys.forEach((y, i) => i ? ctx.lineTo(X(angles[i]), Y(y)) : ctx.moveTo(X(angles[i]), Y(y)));
-    ctx.strokeStyle = s.colour; ctx.lineWidth = s.me ? 2.6 : 1.4;
-    ctx.globalAlpha = s.me ? 1 : 0.65;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    s.ys.forEach((y, i) => {
+      const yy = Math.min(y, dMax);
+      i ? ctx.lineTo(X(angles[i]), Y(yy)) : ctx.moveTo(X(angles[i]), Y(yy));
+    });
+    ctx.strokeStyle = s.colour; ctx.lineWidth = s.width; ctx.stroke();
+    ctx.restore();
   }
 
-  // current angle marker
+  // the band the pump cycle actually spends its time in
+  const tr = pumpTrace(S.V, S.pump);
+  ctx.fillStyle = "rgba(45,114,119,0.10)";
+  ctx.fillRect(X(Math.max(0, tr.min)), pad.t, X(Math.min(24, tr.max)) - X(Math.max(0, tr.min)), h - pad.t - pad.b);
+  text(ctx, "pump range", X(Math.max(0, tr.min)) + 4, pad.t + 11, { colour: "#2d7277" });
+
   ctx.setLineDash([4, 3]); ctx.strokeStyle = "rgba(21,34,41,0.35)";
   ctx.beginPath(); ctx.moveTo(X(S.alpha), pad.t); ctx.lineTo(X(S.alpha), h - pad.b); ctx.stroke();
   ctx.setLineDash([]);
 
   document.getElementById("dragNote").textContent = `at ${S.V.toFixed(1)} m/s`;
+  legend("dragLegend", [
+    { colour: "#2d7277", label: S.fuse.name },
+    ...(baseF && baseF.id !== S.fuse.id ? [{ colour: "#8b959a", dash: true, label: baseF.name }] : []),
+    ...(S.optimum ? [{ colour: "#bd6b3f", label: "optimised" }] : []),
+    { colour: "rgba(21,34,41,0.28)", label: "the rest of the library" },
+    { colour: "rgba(45,114,119,0.35)", fill: "rgba(45,114,119,0.18)", label: "angle range of the pump cycle" }
+  ]);
+}
+
+/* =====================================================================
+   Pump cycle trace
+   ===================================================================== */
+function drawPump() {
+  const cv = document.getElementById("cpump");
+  const { ctx, w, h } = fit(cv);
+  const tr = pumpTrace(S.V, S.pump, 181);
+  const pad = { l: 44, r: 12, t: 14, b: 26 };
+  const aLo = Math.min(0, tr.min) - 1, aHi = Math.max(tr.max, 2) + 1;
+  const X = t => pad.l + t * (w - pad.l - pad.r);
+  const Y = a => h - pad.b - (a - aLo) / (aHi - aLo) * (h - pad.t - pad.b);
+
+  ctx.strokeStyle = "rgba(21,34,41,0.1)"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const a = aLo + (aHi - aLo) * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(a)); ctx.lineTo(w - pad.r, Y(a)); ctx.stroke();
+    text(ctx, a.toFixed(0) + "°", pad.l - 6, Y(a) + 3, { align: "right" });
+  }
+
+  // zero line, where the fuse is aligned with the flow
+  if (aLo < 0) {
+    ctx.strokeStyle = "rgba(21,34,41,0.3)"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(w - pad.r, Y(0)); ctx.stroke();
+  }
+
+  // trim line
+  ctx.save();
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = "#8b959a"; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(pad.l, Y(tr.trim)); ctx.lineTo(w - pad.r, Y(tr.trim)); ctx.stroke();
+  ctx.restore();
+  text(ctx, `trim ${tr.trim.toFixed(1)}°`, w - pad.r - 4, Y(tr.trim) - 5, { align: "right", colour: "#6b7579" });
+
+  ctx.beginPath();
+  tr.alpha.forEach((a, i) => i ? ctx.lineTo(X(tr.t[i]), Y(a)) : ctx.moveTo(X(tr.t[i]), Y(a)));
+  ctx.strokeStyle = "#2d7277"; ctx.lineWidth = 2.4; ctx.stroke();
+
+  // where the main slider currently sits
+  ctx.save();
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = "#bd6b3f"; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(pad.l, Y(S.alpha)); ctx.lineTo(w - pad.r, Y(S.alpha)); ctx.stroke();
+  ctx.restore();
+  text(ctx, "slider", pad.l + 4, Y(S.alpha) - 5, { colour: "#bd6b3f" });
+
+  text(ctx, "one pump cycle", pad.l, h - 9);
+  text(ctx, "fuse angle", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
 }
 
 /* =====================================================================
@@ -1367,6 +1700,32 @@ function updateConfig() {
 /* =====================================================================
    Render
    ===================================================================== */
+function updatePump() {
+  const tr = pumpTrace(S.V, S.pump);
+  const cyc = cycleDrag(S.fuse, S.V, S.pump);
+  const steady = totalDrag(S.fuse, tr.trim, S.V, 21).D;
+  document.getElementById("pumpNote").textContent =
+    `${S.pump.f.toFixed(1)} Hz, ${(S.pump.heave * 1000).toFixed(0)} mm heave`;
+  document.getElementById("pumpMetrics").innerHTML = [
+    metric("Trim angle", tr.trim.toFixed(1), "°"),
+    metric("Swing", "±" + tr.swing.toFixed(1), "°"),
+    metric("Range", `${tr.min.toFixed(1)} to ${tr.max.toFixed(1)}`, "°"),
+    metric("Drag-weighted", cyc.effAngle.toFixed(1), "°"),
+    metric("Cycle-mean drag", cyc.mean.toFixed(2), "N")
+  ].join("");
+  const el = document.getElementById("pumpFlag");
+  const penalty = 100 * (cyc.mean / Math.max(steady, 1e-6) - 1);
+  el.className = "flag " + (tr.trim > 11 ? "warn" : "ok");
+  el.textContent = (tr.trim > 11
+    ? `Trim is ${tr.trim.toFixed(1)}°, at or past where this wing stalls, so you are below the speed it can hold. `
+    : `Trim comes out at ${tr.trim.toFixed(1)}° from the lift equation alone. `) +
+    `The pump swings the flight path by ±${tr.gammaAmp.toFixed(1)}°, of which the rider feathers out
+     ${(100 * S.pump.feather).toFixed(0)}%, leaving the fuse working between ${tr.min.toFixed(1)}° and
+     ${tr.max.toFixed(1)}°. Because drag climbs faster than linearly with angle, the drag-weighted
+     average is ${cyc.effAngle.toFixed(1)}°, and averaging over the cycle costs
+     ${penalty >= 0 ? "+" : ""}${penalty.toFixed(0)}% against sitting at trim.`.replace(/\s+/g, " ");
+}
+
 let cfdPending = null;
 function render() {
   const sec = currentSection();
@@ -1374,17 +1733,67 @@ function render() {
   drawSide();
   drawSection();
   drawDragCurve();
+  drawPump();
   drawCompare();
   updateTable();
+  updatePump();
   updateConfig();
 
-  // section solve is the expensive bit, defer it a frame
+  legend("d3Legend", [
+    { colour: "#6f8b90", fill: "#8fa5a8", label: "fuse, with the near half cut away" },
+    { colour: "#a4562f", fill: "rgba(189,107,63,0.55)", label: "the exposed cut face" },
+    { colour: "#bd6b3f", dash: true, label: "cutting plane, lying along the flow" }
+  ]);
+  legend("sideLegend", [
+    { colour: "#2d7277", fill: "rgba(45,114,119,0.24)", label: "fuse silhouette" },
+    { colour: "rgba(21,34,41,0.35)", label: "streamlines at the pump angle" },
+    { colour: "#bd6b3f", label: "the cut, drawn over its chord" }
+  ]);
+  legend("cpLegend", [
+    { colour: "#2d7277", label: "surface pressure coefficient" },
+    { colour: "#8a7a3f", dash: true, label: "transition to turbulent" },
+    { colour: "#bd6b3f", dash: true, label: "separation" }
+  ]);
+
   clearTimeout(cfdPending);
   updateMetrics(sec, null);
   cfdPending = setTimeout(() => {
     const cfd = sec ? runSectionCFD(sec, S.V) : null;
     drawCp(cfd);
   }, 30);
+}
+
+function renderOptimum() {
+  const el = document.getElementById("optOut");
+  document.getElementById("optApply").disabled = !S.optimum;
+  document.getElementById("optClear").disabled = !S.optimum;
+  if (!S.optimum) { el.innerHTML = ""; return; }
+  const o = S.optimum, cur = totalDrag(S.fuse, S.alpha, S.V, 21).D;
+  const gain = 100 * (1 - o.D / Math.max(cur, 1e-9));
+  const name = {
+    superellipse: n => `superellipse, exponent ${n}`,
+    rect: r => `rounded rectangle, ${r} mm corners`,
+    naca: f => `aerofoil section, nose ${f ? "up" : "down"}`
+  };
+  const sd = o.fuse.section;
+  const label = sd.type === "superellipse" ? name.superellipse(sd.n)
+              : sd.type === "rect" ? name.rect(sd.fillet) : name.naca(sd.flip);
+  el.innerHTML = `<div class="opt-result">
+    At <b>${S.alpha.toFixed(1)}°</b> and <b>${S.V.toFixed(1)} m/s</b>, holding stiffness and area,
+    the lowest-drag fuse is a <b>${label}</b> at
+    <b>${o.fuse.h.toFixed(1)} × ${o.fuse.w.toFixed(1)} mm</b>.
+    Drag <b>${o.D.toFixed(2)} N</b> against ${cur.toFixed(2)} N for the fuse you have,
+    ${gain >= 0 ? `a ${gain.toFixed(0)}% saving` : `which is ${(-gain).toFixed(0)}% worse, so what you have is already better`}.
+    ${o.capped ? `<br>Height is pegged at the ${S.hMax} mm joint limit, so width was traded back to keep the stiffness.` : ""}
+    <br><span style="color:var(--muted)">Second moment ${(o.props.Iyy / 1000).toFixed(1)} ×10³ mm⁴ vertical,
+    ${(o.props.Izz / 1000).toFixed(1)} ×10³ mm⁴ lateral. The lateral figure is the one that gets thin
+    when the optimiser goes tall, and it is not constrained here.</span>
+    <br><br><span style="color:var(--muted)">Read the margin, not just the winner. The objective only
+    sees thickness ratio, wetted area and how blunt the ends are, so it separates clean outlines from
+    blunt ones decisively and can barely tell two clean outlines apart. A few percent between an
+    ellipse and a designed aerofoil is inside the noise of this model. Tens of percent against a
+    square-edged bar is not.</span>
+  </div>`;
 }
 
 /* =====================================================================
@@ -1398,6 +1807,11 @@ function syncControls() {
   document.getElementById("LV").textContent = f.L + " mm";
   document.getElementById("hV").textContent = f.h + " mm";
   document.getElementById("wV").textContent = f.w + " mm";
+  document.getElementById("pmassV").textContent = S.pump.mass.toFixed(0) + " kg";
+  document.getElementById("pwingV").textContent = (S.pump.S * 1e4).toFixed(0) + " cm²";
+  document.getElementById("pfreqV").textContent = S.pump.f.toFixed(1) + " Hz";
+  document.getElementById("pheaveV").textContent = (S.pump.heave * 1000).toFixed(0) + " mm";
+  document.getElementById("pfeatherV").textContent = (100 * S.pump.feather).toFixed(0) + "%";
   document.getElementById("L").value = f.L;
   document.getElementById("h").value = f.h;
   document.getElementById("w").value = f.w;
@@ -1431,17 +1845,11 @@ function init() {
     if (f) { S.fuse = cloneFuse(f); S.cache.clear(); syncControls(); render(); }
   });
 
-  const cmp = document.getElementById("compareSeg");
-  cmp.innerHTML = LIBRARY.map(f =>
-    `<button data-id="${f.id}"><span class="swatch" style="background:${f.colour}"></span>${f.name.split(",")[0]}</button>`).join("");
-  for (const b of cmp.querySelectorAll("button")) {
-    b.setAttribute("aria-pressed", String(S.compare.has(b.dataset.id)));
-    b.addEventListener("click", () => {
-      if (S.compare.has(b.dataset.id)) S.compare.delete(b.dataset.id); else S.compare.add(b.dataset.id);
-      b.setAttribute("aria-pressed", String(S.compare.has(b.dataset.id)));
-      render();
-    });
-  }
+  const bsel = document.getElementById("baseline");
+  bsel.innerHTML = `<option value="">nothing</option>` +
+    LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
+  bsel.value = S.baseline;
+  bsel.addEventListener("change", () => { S.baseline = bsel.value; render(); });
 
   const bind = (id, fn) => {
     const el = document.getElementById(id);
@@ -1455,6 +1863,28 @@ function init() {
   bind("w", v => S.fuse.w = v);
   bind("nExp", v => { if (S.fuse.section.type === "superellipse") S.fuse.section.n = v; });
   bind("fillet", v => { if (S.fuse.section.type === "rect") S.fuse.section.fillet = v; });
+  bind("pmass", v => S.pump.mass = v);
+  bind("pwing", v => S.pump.S = v);
+  bind("pfreq", v => S.pump.f = v);
+  bind("pheave", v => S.pump.heave = v);
+  bind("pfeather", v => S.pump.feather = v);
+
+  document.getElementById("optRun").addEventListener("click", () => {
+    const r = optimise(S.alpha, S.V);
+    S.optimum = r.best;
+    renderOptimum(); render();
+  });
+  document.getElementById("optApply").addEventListener("click", () => {
+    if (!S.optimum) return;
+    S.fuse = cloneFuse(S.optimum.fuse);
+    S.fuse.name = "Optimised " + S.fuse.h.toFixed(0) + " × " + S.fuse.w.toFixed(0);
+    S.fuse.id = "optimised";
+    S.optimum = null;
+    S.cache.clear(); renderOptimum(); syncControls(); render();
+  });
+  document.getElementById("optClear").addEventListener("click", () => {
+    S.optimum = null; renderOptimum(); render();
+  });
 
   for (const b of document.querySelectorAll("#secType button")) {
     b.addEventListener("click", () => {
@@ -1472,10 +1902,14 @@ function init() {
     });
   }
 
-  // 3D drag to rotate
+  // 3D: drag to rotate, scroll to zoom
   const cv = document.getElementById("c3d");
   let dragging = false, lx = 0, ly = 0;
-  cv.addEventListener("pointerdown", e => { dragging = true; lx = e.clientX; ly = e.clientY; cv.setPointerCapture(e.pointerId); });
+  cv.style.cursor = "grab";
+  cv.addEventListener("pointerdown", e => {
+    dragging = true; lx = e.clientX; ly = e.clientY;
+    cv.style.cursor = "grabbing"; cv.setPointerCapture(e.pointerId);
+  });
   cv.addEventListener("pointermove", e => {
     if (!dragging) return;
     S.az -= (e.clientX - lx) * 0.007;
@@ -1483,7 +1917,18 @@ function init() {
     lx = e.clientX; ly = e.clientY;
     draw3D();
   });
-  cv.addEventListener("pointerup", e => { dragging = false; cv.releasePointerCapture(e.pointerId); });
+  const endDrag = e => {
+    dragging = false; cv.style.cursor = "grab";
+    if (cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+  };
+  cv.addEventListener("pointerup", endDrag);
+  cv.addEventListener("pointercancel", endDrag);
+  cv.addEventListener("wheel", e => {
+    e.preventDefault();
+    S.zoom = Math.max(0.4, Math.min(8, S.zoom * Math.exp(-e.deltaY * 0.0015)));
+    draw3D();
+  }, { passive: false });
+  cv.addEventListener("dblclick", () => { S.zoom = 1; S.az = -0.62; S.el = 0.30; draw3D(); });
 
   document.getElementById("cfgCopy").addEventListener("click", () => {
     const ta = document.getElementById("cfgOut");
@@ -1499,6 +1944,7 @@ function init() {
 
   window.addEventListener("resize", () => render());
   syncControls();
+  renderOptimum();
   render();
 }
 

@@ -72,12 +72,59 @@ of chord `L`, which is the familiar picture of a fuse.
 
 ## What the playground shows
 
-1. The fuse in 3D with the cutting plane through it, draggable to rotate.
-2. Side view with the flow arriving at the pump angle and the cut marked.
-3. The resulting section drawn to scale, with the compared shapes overlaid.
+1. The fuse in 3D, cut away at the plane so the section face is exposed. Drag to rotate, scroll to
+   zoom, double-click to reset. The near half is drawn as a ghost so the whole shape stays readable.
+2. Side view with the flow arriving at the pump angle and the cut marked over its chord.
+3. The resulting section drawn to scale, against one baseline of your choosing.
 4. Pressure distribution and boundary layer for that section.
-5. Fuse drag against pump angle, for every shape at once.
-6. All six shapes cut at the same angle, on a common chord axis, with a sortable table.
+5. An optimiser, described below.
+6. A pump-cycle model that works out what angle the fuse actually sees.
+7. Fuse drag against pump angle for every shape at once, with the pump cycle's range shaded.
+8. All six shapes cut at the same angle on a common chord axis, with a table.
+
+## The optimiser
+
+Minimising drag alone is meaningless, because it just drives the fuse to zero width. So the
+optimiser holds two things at least as good as the fuse you already have:
+
+- **vertical bending stiffness** `Iyy = w·h³·I₂/8`, which is what resists the tail's downforce
+- **cross-sectional area** `A = w·h·I₀/2`, standing in for weight
+
+`I₀` and `I₂` are integrals of the outline function, so they capture shape as well as size. The
+stiffness floor sets the thinnest allowable width at any height, `w_min(h) = 8·Iyy*/(h³·I₂)`, and
+the area ceiling sets the tallest useful height. Everything between is a valid design, so the
+optimiser walks that range for every candidate outline and reports the lowest-drag combination,
+subject to a height limit for what the mast and wing joints will take.
+
+**Read the margin, not the winner.** The objective only sees thickness ratio, wetted area and how
+blunt the ends are. It separates clean outlines from blunt ones decisively and can barely tell two
+clean outlines apart. A plain ellipse currently wins from every starting point, with a designed
+aerofoil section within about 1%. That 1% is inside the model's noise and should not be read as a
+result. The 93% against a square-edged bar should.
+
+## The pump cycle
+
+The fuse angle relative to the water is `θ − γ`, which is also the front wing's angle of attack. So
+the fuse angle is not a free choice. It is whatever the lift equation demands at your speed and
+loading:
+
+| Speed | Fuse angle at trim |
+|---|---|
+| 3.5 m/s | 8.9° |
+| 4.5 m/s | 5.4° |
+| 7.0 m/s | 2.3° |
+
+Those come from `foil-rl-pump/python-rl/foil_env/foil_physics.py` in this repo, whose
+`compute_trim_angle` solves the full wing, stabiliser and mast balance. The playground reimplements
+just the wing term and lands within about 2.5% of it.
+
+On top of trim, the pump swings the flight path by `atan(A·ω/V)`, which is large: 80 mm of heave at
+2 Hz and 4.5 m/s is ±12.6°. The rider feathers most of that out by pitching with the stroke, and
+what is left is the swing the fuse actually works through.
+
+The headline is not that pumping adds angle. It is that **trim itself is 5 to 9° at pumping speeds**,
+which is far more than the one or two degrees most people would picture. Slow, high-lift pumping is
+exactly where the fuse is most badly aligned.
 
 ## Drag estimates
 
@@ -102,10 +149,14 @@ indicative. **Differences between shapes at the same angle are the useful output
 
 - No real CFD. A RANS or even a proper 2D Navier-Stokes solve would be the honest next step,
   and the geometry export needed to feed one does not exist yet.
-- No structural side. The whole argument for a tall thin fuse is stiffness, and stiffness is not
-  modelled here at all, so the playground will happily tell you an absurdly thin fuse is best.
-  Pairing this with a beam-stiffness constraint is the obvious next move.
+- The optimiser's objective is too coarse to rank clean outlines against each other. Driving it
+  from the panel and boundary layer solve instead of the form-factor estimate would fix that, at
+  the cost of being far slower and much more fragile on blunt shapes.
+- Torsional stiffness is not constrained, only bending. A tall thin blade gives up lateral
+  stiffness quickly, and the optimiser is free to spend it.
 - No junction modelling at the mast, front wing, or tail.
+- The pump model assumes a sinusoidal heave and a constant feathering fraction. Driving it from a
+  trained policy rollout in `foil-rl-pump` would be more honest.
 - The bundled shapes are archetypes for exploring the geometry, **not measured brand geometry.**
 
 ## Contributing a fuse
