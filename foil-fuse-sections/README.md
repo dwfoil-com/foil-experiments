@@ -75,7 +75,8 @@ of chord `L`, which is the familiar picture of a fuse.
 1. The fuse in 3D, cut away at the plane so the section face is exposed. Drag to rotate, scroll to
    zoom, double-click to reset. The near half is drawn as a ghost so the whole shape stays readable.
 2. Side view with the flow arriving at the pump angle and the cut marked over its chord.
-3. The resulting section drawn to scale, against one baseline of your choosing.
+3. The resulting section drawn to scale, against one baseline of your choosing, with water
+   actually flowing over it.
 4. Pressure distribution and boundary layer for that section.
 5. An optimiser, described below.
 6. A pump-cycle model that works out what angle the fuse actually sees.
@@ -141,7 +142,18 @@ inviscid surface velocity, then a Thwaites laminar boundary layer, Michel transi
 entrainment method for the turbulent part, and Squire–Young for profile drag. This is where
 separation shows up.
 
-Both are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
+**The animation.** A D2Q9 lattice Boltzmann solver on a 300 × 100 grid, colouring vorticity. This
+is deliberately not a potential-flow streamline animation, which would have drawn smooth attached
+flow around a square-ended slab and contradicted the entire point of the page. It genuinely
+separates.
+
+It runs at a Reynolds number roughly a thousand times below reality, so it answers "does this shape
+stay attached or shed" and nothing else. It does answer that consistently: integrating wake
+vorticity after 2500 steps ranks the shapes square bar 0.100, the default fuse 0.058, elliptical
+blade 0.029, flow-aligned 0.016, which is the same order the drag model gives from completely
+independent maths.
+
+Both drag estimates are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
 downforce, the front wing's downwash, and all three-dimensional relief. Absolute numbers are
 indicative. **Differences between shapes at the same angle are the useful output.**
 

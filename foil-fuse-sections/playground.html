@@ -270,6 +270,21 @@
         <div class="legend" id="secLegend"></div>
         <div class="metrics" style="margin-top:14px" id="secMetrics"></div>
         <div id="secFlag"></div>
+
+        <div class="canvas-head" style="margin-top:22px">
+          <h3>Water flowing over it</h3>
+          <span class="seg">
+            <button id="cfdToggle" aria-pressed="true">pause</button>
+            <button id="cfdReset">reset</button>
+          </span>
+        </div>
+        <canvas id="ccfd" height="150"></canvas>
+        <div class="legend" id="cfdLegend"></div>
+        <p class="hint" style="margin-top:8px">
+          Lattice Boltzmann, colouring vorticity. It runs at a Reynolds number around a thousand
+          times lower than the real thing, so read it for whether the shape stays attached or sheds,
+          never for a number. Blunt ends start shedding almost immediately; clean ones hold on.
+        </p>
       </div>
 
       <div class="card opt">
@@ -1586,6 +1601,205 @@ function drawDragCurve() {
 }
 
 /* =====================================================================
+   Lattice Boltzmann, D2Q9 with BGK collision.
+   A potential-flow animation would draw smooth attached streamlines around a
+   square-ended slab, which is exactly backwards. This actually separates.
+   It runs at a far lower Reynolds number than the real thing, so read it for
+   whether the shape sheds, not for numbers.
+   ===================================================================== */
+const LBM = (() => {
+  const NX = 300, NY = 100, Q = 9;
+  const ex = [0, 1, 0, -1, 0, 1, -1, -1, 1];
+  const ey = [0, 0, 1, 0, -1, 1, 1, -1, -1];
+  const wq = [4 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 36, 1 / 36, 1 / 36, 1 / 36];
+  const opp = [0, 3, 4, 1, 2, 7, 8, 5, 6];
+  const TAU = 0.55, U0 = 0.09;
+
+  const n = NX * NY;
+  // one array per lattice direction rather than interleaved: the hot loops then walk
+  // memory linearly, and streaming is a shifted gather instead of a full buffer copy
+  let f = Array.from({ length: Q }, () => new Float32Array(n));
+  let g = Array.from({ length: Q }, () => new Float32Array(n));
+  const off = ex.map((e, q) => e + ey[q] * NX);
+  const solid = new Uint8Array(n);
+  const vort = new Float32Array(n);
+  const ux = new Float32Array(n), uy = new Float32Array(n);
+  let ready = false, blown = false;
+
+  function equilibrium(out, i, rho, vx, vy) {
+    const usq = 1.5 * (vx * vx + vy * vy);
+    for (let q = 0; q < Q; q++) {
+      const eu = 3 * (ex[q] * vx + ey[q] * vy);
+      out[q][i] = wq[q] * rho * (1 + eu + 0.5 * eu * eu - usq);
+    }
+  }
+
+  function build(sec) {
+    solid.fill(0);
+    // domain is 2.6 chords long, with the leading edge 22% of the way in
+    const cell = 2.6 * sec.chord / NX;
+    const x0 = sec.uLE - 0.22 * 2.6 * sec.chord;
+    const y0 = -0.5 * NY * cell;
+    for (let j = 0; j < NY; j++) {
+      const yy = y0 + (j + 0.5) * cell;
+      for (let i = 0; i < NX; i++) {
+        const xx = x0 + (i + 0.5) * cell;
+        if (xx < sec.uLE || xx > sec.uTE) continue;
+        // linear interp of the half-thickness at this station
+        const fr = (xx - sec.uLE) / sec.chord * (sec.N - 1);
+        const k = Math.max(0, Math.min(sec.N - 2, Math.floor(fr)));
+        const t = sec.t[k] + (sec.t[k + 1] - sec.t[k]) * (fr - k);
+        if (Math.abs(yy) <= t) solid[j * NX + i] = 1;
+      }
+    }
+    for (let i = 0; i < n; i++) equilibrium(f, i, 1, solid[i] ? 0 : U0, 0);
+    for (let q = 0; q < Q; q++) g[q].set(f[q]);
+    ready = true; blown = false;
+  }
+
+  function step() {
+    if (!ready || blown) return;
+    const f0 = f[0], f1 = f[1], f2 = f[2], f3 = f[3], f4 = f[4],
+          f5 = f[5], f6 = f[6], f7 = f[7], f8 = f[8];
+    // collide
+    for (let i = 0; i < n; i++) {
+      if (solid[i]) continue;
+      const a0 = f0[i], a1 = f1[i], a2 = f2[i], a3 = f3[i], a4 = f4[i],
+            a5 = f5[i], a6 = f6[i], a7 = f7[i], a8 = f8[i];
+      const rho = a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+      if (!(rho > 1e-6)) { blown = true; return; }
+      const vx = (a1 - a3 + a5 - a6 - a7 + a8) / rho;
+      const vy = (a2 - a4 + a5 + a6 - a7 - a8) / rho;
+      const u2 = vx * vx + vy * vy;
+      if (u2 > 0.16) { blown = true; return; }
+      const usq = 1.5 * u2, om = 1 / TAU;
+      const r4 = rho * (4 / 9), r1 = rho * (1 / 9), r36 = rho * (1 / 36);
+      // unrolled so the writes hit the hoisted arrays directly
+      const e = (r, eu) => r * (1 + eu + 0.5 * eu * eu - usq);
+      const x3 = 3 * vx, y3 = 3 * vy;
+      f0[i] = a0 + (e(r4, 0) - a0) * om;
+      f1[i] = a1 + (e(r1, x3) - a1) * om;
+      f2[i] = a2 + (e(r1, y3) - a2) * om;
+      f3[i] = a3 + (e(r1, -x3) - a3) * om;
+      f4[i] = a4 + (e(r1, -y3) - a4) * om;
+      f5[i] = a5 + (e(r36, x3 + y3) - a5) * om;
+      f6[i] = a6 + (e(r36, -x3 + y3) - a6) * om;
+      f7[i] = a7 + (e(r36, -x3 - y3) - a7) * om;
+      f8[i] = a8 + (e(r36, x3 - y3) - a8) * om;
+    }
+    // stream by gathering from the upwind neighbour, bouncing back off the body
+    for (let q = 0; q < Q; q++) {
+      const src = f[q], dst = g[q], back = f[opp[q]], o = off[q];
+      for (let j = 1; j < NY - 1; j++) {
+        const row = j * NX;
+        for (let i = 1; i < NX - 1; i++) {
+          const id = row + i;
+          if (solid[id]) continue;
+          const sid = id - o;
+          dst[id] = solid[sid] ? back[id] : src[sid];
+        }
+      }
+    }
+    const tmp = f; f = g; g = tmp;
+
+    // inlet, outlet and free-stream top and bottom
+    for (let j = 0; j < NY; j++) {
+      equilibrium(f, j * NX, 1, U0, 0);
+      const last = j * NX + NX - 1, prev = last - 1;
+      for (let q = 0; q < Q; q++) f[q][last] = f[q][prev];
+    }
+    for (let i = 0; i < NX; i++) {
+      equilibrium(f, i, 1, U0, 0);
+      equilibrium(f, (NY - 1) * NX + i, 1, U0, 0);
+    }
+  }
+
+  function vorticity() {
+    const f0 = f[0], f1 = f[1], f2 = f[2], f3 = f[3], f4 = f[4],
+          f5 = f[5], f6 = f[6], f7 = f[7], f8 = f[8];
+    for (let i = 0; i < n; i++) {
+      if (solid[i]) { ux[i] = 0; uy[i] = 0; continue; }
+      const a0 = f0[i], a1 = f1[i], a2 = f2[i], a3 = f3[i], a4 = f4[i],
+            a5 = f5[i], a6 = f6[i], a7 = f7[i], a8 = f8[i];
+      const rho = a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+      if (rho > 1e-6) {
+        ux[i] = (a1 - a3 + a5 - a6 - a7 + a8) / rho;
+        uy[i] = (a2 - a4 + a5 + a6 - a7 - a8) / rho;
+      } else { ux[i] = 0; uy[i] = 0; }
+    }
+    for (let j = 1; j < NY - 1; j++) {
+      for (let i = 1; i < NX - 1; i++) {
+        const id = j * NX + i;
+        vort[id] = solid[id] ? 0
+          : (uy[id + 1] - uy[id - 1]) / 2 - (ux[id + NX] - ux[id - NX]) / 2;
+      }
+    }
+    return vort;
+  }
+
+  return { NX, NY, build, step, vorticity, solid,
+           get ready() { return ready; }, get blown() { return blown; } };
+})();
+
+let lbmBuf = null;
+function drawCFD() {
+  const cv = document.getElementById("ccfd");
+  if (!cv) return;
+  const { ctx, w, h } = fit(cv);
+  if (!LBM.ready) return;
+  if (!lbmBuf) {
+    lbmBuf = document.createElement("canvas");
+    lbmBuf.width = LBM.NX; lbmBuf.height = LBM.NY;
+  }
+  const bctx = lbmBuf.getContext("2d");
+  const img = bctx.createImageData(LBM.NX, LBM.NY);
+  const vt = LBM.vorticity();
+  // Signed square root against a fixed reference. Vorticity peaks in a thin layer on the
+  // surface and is an order of magnitude weaker out in the wake, so a linear map saturates
+  // the surface and leaves the interesting part invisible.
+  const REF = 0.05;
+  for (let j = 0; j < LBM.NY; j++) {
+    for (let i = 0; i < LBM.NX; i++) {
+      const id = j * LBM.NX + i;
+      const p = ((LBM.NY - 1 - j) * LBM.NX + i) * 4;
+      if (LBM.solid[id]) { img.data[p] = 33; img.data[p + 1] = 48; img.data[p + 2] = 56; img.data[p + 3] = 255; continue; }
+      const s = vt[id] / REF;
+      const v = Math.sign(s) * Math.sqrt(Math.min(1, Math.abs(s)));
+      // teal for one sign, clay for the other, paper in between
+      const r = v > 0 ? 189 * v + 250 * (1 - v) : 45 * -v + 250 * (1 + v);
+      const gg = v > 0 ? 107 * v + 245 * (1 - v) : 114 * -v + 245 * (1 + v);
+      const b = v > 0 ? 63 * v + 235 * (1 - v) : 119 * -v + 235 * (1 + v);
+      img.data[p] = r; img.data[p + 1] = gg; img.data[p + 2] = b; img.data[p + 3] = 255;
+    }
+  }
+  bctx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(lbmBuf, 0, 0, w, h);
+  if (LBM.blown) text(ctx, "solver went unstable, press reset", w / 2, h / 2,
+    { align: "center", colour: "#8c4823", font: "600 12px 'Avenir Next', sans-serif" });
+}
+
+// three independent gates: the play button, whether the canvas is on screen, and
+// whether the tab is frontmost. They must stay separate, or coming back to a
+// backgrounded tab leaves the animation dead.
+let cfdRAF = null, cfdOn = true, cfdInView = false, cfdPageVisible = !document.hidden;
+function cfdLoop() {
+  cfdRAF = requestAnimationFrame(cfdLoop);
+  if (!cfdOn || !cfdInView || !cfdPageVisible || !LBM.ready || LBM.blown) return;
+  for (let k = 0; k < 6; k++) LBM.step();
+  drawCFD();
+}
+
+let cfdRebuild = null;
+function scheduleCFD() {
+  clearTimeout(cfdRebuild);
+  cfdRebuild = setTimeout(() => {
+    const sec = currentSection();
+    if (sec) { LBM.build(sec); drawCFD(); }
+  }, 220);
+}
+
+/* =====================================================================
    Pump cycle trace
    ===================================================================== */
 function drawPump() {
@@ -1809,6 +2023,12 @@ function render() {
     { colour: "#8a7a3f", dash: true, label: "transition to turbulent" },
     { colour: "#bd6b3f", dash: true, label: "separation" }
   ]);
+  legend("cfdLegend", [
+    { colour: "#2d7277", fill: "#2d7277", label: "vorticity one way" },
+    { colour: "#bd6b3f", fill: "#bd6b3f", label: "and the other" },
+    { colour: "#212f38", fill: "#212f38", label: "the section" }
+  ]);
+  scheduleCFD();
 
   clearTimeout(cfdPending);
   updateMetrics(sec, null);
@@ -1990,6 +2210,28 @@ function init() {
       S.cache.clear(); syncControls(); render();
     } catch (e) { alert("Could not parse that config: " + e.message); }
   });
+
+  const tog = document.getElementById("cfdToggle");
+  tog.addEventListener("click", () => {
+    cfdOn = !cfdOn;
+    tog.textContent = cfdOn ? "pause" : "play";
+    tog.setAttribute("aria-pressed", String(cfdOn));
+  });
+  document.getElementById("cfdReset").addEventListener("click", () => {
+    const sec = currentSection();
+    if (sec) { LBM.build(sec); drawCFD(); }
+  });
+
+  // only spend cycles on the solver while it is actually on screen
+  const cfdCv = document.getElementById("ccfd");
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(es => { cfdInView = es[0].isIntersecting; }, { threshold: 0.05 })
+      .observe(cfdCv);
+  } else {
+    cfdInView = true;
+  }
+  document.addEventListener("visibilitychange", () => { cfdPageVisible = !document.hidden; });
+  cfdLoop();
 
   window.addEventListener("resize", () => render());
   syncControls();
