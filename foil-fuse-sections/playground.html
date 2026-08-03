@@ -129,14 +129,13 @@
     <span class="eyebrow">Foil experiments &middot; fuselage geometry</span>
     <h1>What the water actually sees when a fuse is at pump angle</h1>
     <p>
-      A fuselage is normally drawn as a bar. But in flight it sits at an angle to the oncoming water, and at
-      that angle the streamwise cut through it is not the bar's cross-section. It is a long, thin aerofoil whose
-      shape is set entirely by the outline of the fuse's cross-section. Slice a fuse at 10&deg; and you get a
-      section with roughly six times the chord of the fuse height. Whether that section is a clean aerofoil or a
-      blunt-ended slab is decided by geometry you can see here.
+      A fuselage only sits parallel to the flow in a drawing. In flight it is pitched nose-up, and at
+      that angle the cut the water crosses is a long thin aerofoil with roughly six times the chord of
+      the fuse height. Its shape is the fuse's own cross-section outline, stretched along the chord,
+      which makes the corner radii an aerofoil decision rather than a cosmetic one.
     </p>
     <p>
-      Slide the pump angle and watch the section change. Then compare shapes at the same angle.
+      Slide the pump angle and watch the section change. The working is at the bottom.
     </p>
   </div>
 
@@ -155,9 +154,8 @@
 
         <div class="row">
           <label for="alpha">Pump angle <span class="val" id="alphaV"></span></label>
-          <input type="range" id="alpha" min="0" max="24" step="0.5" value="10">
-          <div class="hint">Angle between the fuse axis and the oncoming water. Steady flight is a few degrees;
-            the pump stroke swings it well beyond that.</div>
+          <input type="range" id="alpha" min="0" max="24" step="0.5" value="8">
+          <div class="hint">Between the fuse axis and the oncoming water.</div>
         </div>
 
         <div class="row">
@@ -168,7 +166,7 @@
         <div class="row">
           <label for="slicePos">Slice position <span class="val" id="slicePosV"></span></label>
           <input type="range" id="slicePos" min="0.02" max="0.98" step="0.005" value="0.5">
-          <div class="hint">Which of the parallel streamwise cuts to inspect. 0 is nearest the nose, 1 nearest the tail.</div>
+          <div class="hint">Which of the parallel cuts to inspect.</div>
         </div>
 
         <div class="divider"></div>
@@ -197,7 +195,7 @@
         <div class="row" id="rowN">
           <label for="nExp">Superellipse exponent <span class="val" id="nExpV"></span></label>
           <input type="range" id="nExp" min="1.6" max="10" step="0.1" value="2">
-          <div class="hint">2 is an ellipse. 4 is a squircle. 10 is effectively a rectangle.</div>
+          <div class="hint">2 is an ellipse, 10 is effectively a rectangle.</div>
         </div>
         <div class="row" id="rowFillet">
           <label for="fillet">Corner radius <span class="val" id="filletV"></span></label>
@@ -206,11 +204,10 @@
         <div class="row" id="rowFlip">
           <label>Aerofoil nose</label>
           <div class="seg" id="flipSeg">
-            <button data-f="0">bottom (up-stroke)</button>
-            <button data-f="1">top (down-stroke)</button>
+            <button data-f="0">bottom</button>
+            <button data-f="1">top</button>
           </div>
-          <div class="hint">With the fuse nose-up, the streamwise cut enters through the bottom of the fuse.
-            An aerofoil section only has its rounded nose facing the flow if it points down.</div>
+          <div class="hint">Nose-up means the cut enters through the bottom of the fuse.</div>
         </div>
       </div>
 
@@ -218,11 +215,11 @@
         <h3>Pump cycle</h3>
         <div class="row">
           <label for="pmass">Rider + gear <span class="val" id="pmassV"></span></label>
-          <input type="range" id="pmass" min="50" max="120" step="1" value="76">
+          <input type="range" id="pmass" min="50" max="120" step="1" value="80">
         </div>
         <div class="row">
-          <label for="pwing">Front wing area <span class="val" id="pwingV"></span></label>
-          <input type="range" id="pwing" min="0.06" max="0.30" step="0.005" value="0.135">
+          <label for="pwing">Front wing <span class="val" id="pwingV"></span></label>
+          <input type="range" id="pwing" min="0.05" max="0.25" step="0.005" value="0.09">
         </div>
         <div class="row">
           <label for="pfreq">Pump frequency <span class="val" id="pfreqV"></span></label>
@@ -235,8 +232,6 @@
         <div class="row">
           <label for="pfeather">Feathering <span class="val" id="pfeatherV"></span></label>
           <input type="range" id="pfeather" min="0" max="0.95" step="0.05" value="0.55">
-          <div class="hint">How much of the flight-path swing the rider takes out by pitching with the
-            stroke. 0 is a rigid rider, 1 would hold a perfectly constant angle.</div>
         </div>
       </div>
     </div>
@@ -284,12 +279,7 @@
           <button class="btn ghost" id="optApply" disabled>Use it</button>
           <button class="btn ghost" id="optClear" disabled>Clear</button>
         </div>
-        <p class="hint">
-          Holds vertical bending stiffness and cross-sectional area at least as good as the fuse you
-          have, then finds the outline with the lowest drag. Those two constraints pin the height and
-          width exactly for any candidate outline, because area goes as <code>h·w</code> and stiffness
-          goes as <code>w·h³</code>, so the only real choice left is the shape itself.
-        </p>
+        <p class="hint">Lowest drag at no cost in stiffness or weight. Method at the bottom.</p>
         <div id="optOut"></div>
       </div>
 
@@ -403,6 +393,69 @@
               Both are two-dimensional strip estimates. They ignore the junctions at each end, the tail's
               downforce, the front wing's downwash, and all three-dimensional relief, so absolute numbers are
               indicative. Differences between shapes at the same angle are the useful output.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>How the optimiser works</summary>
+          <div class="body">
+            <p>
+              Minimising drag on its own is meaningless, because it just drives the fuse to zero
+              width. So two things are held at least as good as the fuse you already have:
+              vertical bending stiffness <code>Iyy = w·h³·I₂/8</code>, which is what resists the
+              tail's downforce, and cross-sectional area <code>A = w·h·I₀/2</code>, standing in for
+              weight. <code>I₀</code> and <code>I₂</code> are integrals of the outline function, so
+              they capture shape as well as size.
+            </p>
+            <p>
+              The stiffness floor sets the thinnest allowable width at any height,
+              <code>w_min(h) = 8·Iyy*/(h³·I₂)</code>, and the area ceiling sets the tallest useful
+              height. Everything between those is a valid design, so each candidate outline is walked
+              across that range rather than assuming the point where the two constraints meet is the
+              answer. Height is capped at 55&nbsp;mm for what the mast and wing joints will take.
+            </p>
+            <p>
+              <b>Read the margin, not the winner.</b> The objective only sees thickness ratio, wetted
+              area and how blunt the ends are. It separates clean outlines from blunt ones decisively
+              and can barely tell two clean outlines apart. A plain ellipse currently wins from every
+              starting point with a designed aerofoil section within about 1%, and that 1% is inside
+              the model's noise rather than a result. The large margins against square-edged bars are
+              real.
+            </p>
+            <p>
+              Lateral stiffness is reported but not constrained. A tall thin blade gives it up
+              quickly, and the optimiser is free to spend it.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>What the pump model assumes</summary>
+          <div class="body">
+            <p>
+              The fuse angle relative to the water is <code>θ &minus; γ</code>, which is also the
+              front wing's angle of attack. So it is not a free choice: it is whatever the lift
+              equation demands at your speed and loading. That is the whole point. Slow, high-lift
+              pumping is exactly where the fuse is worst aligned.
+            </p>
+            <p>
+              Trim comes from <code>Cl = 2W/(ρSV²)</code> with a lift slope of
+              <code>2π/(1 + 2/AR)</code>, clamped at a 13&deg; stall. Cross-checked against
+              <code>compute_trim_angle</code> in
+              <code>foil-rl-pump/python-rl/foil_env/foil_physics.py</code> in this repo, which solves
+              the full wing, stabiliser and mast balance and gives 8.95&deg; at 3.5&nbsp;m/s and
+              5.44&deg; at 4.5&nbsp;m/s. This reimplements the wing term only and lands within 2.5%.
+            </p>
+            <p>
+              On top of trim, the pump swings the flight path by <code>atan(A·ω/V)</code>, which is
+              large: 80&nbsp;mm of heave at 2&nbsp;Hz and 4.5&nbsp;m/s is &plusmn;12.6&deg;. The rider
+              feathers most of that out by pitching with the stroke. The feathering slider is that
+              fraction, and it is the one number here with no independent source behind it.
+            </p>
+            <p>
+              The heave is assumed sinusoidal and the feathering constant through the stroke. Driving
+              this from a trained policy rollout would be more honest than either assumption.
             </p>
           </div>
         </details>
@@ -884,6 +937,13 @@ const T = (f, p) => ({ f, p });
 
 const LIBRARY = [
   {
+    id: "typical", name: "Typical fuse, 45 × 35", colour: "#152229",
+    L: 600, h: 45, w: 35,
+    section: { type: "rect", fillet: 10 },
+    wNose: T(0.06, 2.2), wTail: T(0.06, 2.2), hNose: T(0, 2), hTail: T(0, 2),
+    note: "A rounded rectangle at the sort of dimensions production fuses actually run. The 10 mm radii leave a flat top and bottom, and those flats become the leading and trailing edge of the section the water crosses."
+  },
+  {
     id: "rod-round", name: "Round bar, Ø30", colour: PALETTE[0],
     L: 640, h: 30, w: 30,
     section: { type: "superellipse", n: 2 },
@@ -933,14 +993,14 @@ function cloneFuse(f) { return JSON.parse(JSON.stringify(f)); }
    State
    ===================================================================== */
 const S = {
-  fuse: cloneFuse(LIBRARY[5]),
+  fuse: cloneFuse(LIBRARY.find(f => f.id === "typical")),
   alpha: 8,
   V: 4.5,
   slicePos: 0.5,
   baseline: "rod-round",
   az: -0.62, el: 0.30, zoom: 1,
   hMax: 55,             // tallest fuse the mast and wing joints will take, mm
-  pump: { mass: 76, S: 0.135, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
+  pump: { mass: 80, S: 0.09, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
   optimum: null,
   cache: new Map()
 };
@@ -1714,16 +1774,11 @@ function updatePump() {
     metric("Cycle-mean drag", cyc.mean.toFixed(2), "N")
   ].join("");
   const el = document.getElementById("pumpFlag");
-  const penalty = 100 * (cyc.mean / Math.max(steady, 1e-6) - 1);
   el.className = "flag " + (tr.trim > 11 ? "warn" : "ok");
   el.textContent = (tr.trim > 11
-    ? `Trim is ${tr.trim.toFixed(1)}°, at or past where this wing stalls, so you are below the speed it can hold. `
-    : `Trim comes out at ${tr.trim.toFixed(1)}° from the lift equation alone. `) +
-    `The pump swings the flight path by ±${tr.gammaAmp.toFixed(1)}°, of which the rider feathers out
-     ${(100 * S.pump.feather).toFixed(0)}%, leaving the fuse working between ${tr.min.toFixed(1)}° and
-     ${tr.max.toFixed(1)}°. Because drag climbs faster than linearly with angle, the drag-weighted
-     average is ${cyc.effAngle.toFixed(1)}°, and averaging over the cycle costs
-     ${penalty >= 0 ? "+" : ""}${penalty.toFixed(0)}% against sitting at trim.`.replace(/\s+/g, " ");
+    ? `Trim wants ${tr.trim.toFixed(1)}°, at or past this wing's stall, so you are below the speed it will hold.`
+    : `The lift equation alone puts the fuse at ${tr.trim.toFixed(1)}° before the rider does anything.`) +
+    ` Pumping swings it between ${tr.min.toFixed(1)}° and ${tr.max.toFixed(1)}°.`;
 }
 
 let cfdPending = null;
@@ -1784,15 +1839,9 @@ function renderOptimum() {
     <b>${o.fuse.h.toFixed(1)} × ${o.fuse.w.toFixed(1)} mm</b>.
     Drag <b>${o.D.toFixed(2)} N</b> against ${cur.toFixed(2)} N for the fuse you have,
     ${gain >= 0 ? `a ${gain.toFixed(0)}% saving` : `which is ${(-gain).toFixed(0)}% worse, so what you have is already better`}.
-    ${o.capped ? `<br>Height is pegged at the ${S.hMax} mm joint limit, so width was traded back to keep the stiffness.` : ""}
-    <br><span style="color:var(--muted)">Second moment ${(o.props.Iyy / 1000).toFixed(1)} ×10³ mm⁴ vertical,
-    ${(o.props.Izz / 1000).toFixed(1)} ×10³ mm⁴ lateral. The lateral figure is the one that gets thin
-    when the optimiser goes tall, and it is not constrained here.</span>
-    <br><br><span style="color:var(--muted)">Read the margin, not just the winner. The objective only
-    sees thickness ratio, wetted area and how blunt the ends are, so it separates clean outlines from
-    blunt ones decisively and can barely tell two clean outlines apart. A few percent between an
-    ellipse and a designed aerofoil is inside the noise of this model. Tens of percent against a
-    square-edged bar is not.</span>
+    ${o.capped ? `<br>Height is pegged at the ${S.hMax} mm joint limit.` : ""}
+    <br><span style="color:var(--muted)">Read the margin, not the winner. A few percent is inside this
+    model's noise; tens of percent is not.</span>
   </div>`;
 }
 

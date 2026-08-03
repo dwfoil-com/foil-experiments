@@ -147,6 +147,13 @@ indicative. **Differences between shapes at the same angle are the useful output
 
 ## What it does not do yet
 
+- **The blunt-end terms are doing most of the work, and they are the least trustworthy part.** On
+  the default fuse, 84% of the section drag comes from the blunt leading edge and base terms, which
+  are two hand-set constants (0.3 and 0.6 on the cut-off thickness). Worse, a strip model treats
+  every parallel cut as an independent 2D section, so the flat top and bottom of the fuse are
+  treated as bluff bases. In reality a long flat surface lying at 8° to the flow behaves more like
+  a plate at incidence than a base, so the penalty is probably overstated. Treat the direction as
+  solid and the magnitude as an upper bound.
 - No real CFD. A RANS or even a proper 2D Navier-Stokes solve would be the honest next step,
   and the geometry export needed to feed one does not exist yet.
 - The optimiser's objective is too coarse to rank clean outlines against each other. Driving it
