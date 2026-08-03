@@ -111,16 +111,16 @@ loading:
 
 | Speed | Fuse angle at trim |
 |---|---|
-| 3.5 m/s | 8.9° |
-| 4.5 m/s | 5.4° |
-| 7.0 m/s | 2.3° |
+| 7.8 mph (3.5 m/s) | 8.9° |
+| 10.1 mph (4.5 m/s) | 5.4° |
+| 15.7 mph (7.0 m/s) | 2.3° |
 
 Those come from `foil-rl-pump/python-rl/foil_env/foil_physics.py` in this repo, whose
 `compute_trim_angle` solves the full wing, stabiliser and mast balance. The playground reimplements
 just the wing term and lands within about 2.5% of it.
 
 On top of trim, the pump swings the flight path by `atan(A·ω/V)`, which is large: 80 mm of heave at
-2 Hz and 4.5 m/s is ±12.6°. The rider feathers most of that out by pitching with the stroke, and
+2 Hz and 10 mph is ±12.6°. The rider feathers most of that out by pitching with the stroke, and
 what is left is the swing the fuse actually works through.
 
 The headline is not that pumping adds angle. It is that **trim itself is 5 to 9° at pumping speeds**,
