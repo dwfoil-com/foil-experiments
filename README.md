@@ -2,7 +2,7 @@
 
 AI-powered experiments in surf hydrofoil design. Each project runs autonomously using [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — you describe what to explore, and the AI runs experiments while you're away from the keyboard.
 
-No programming experience required. Browse the experiments and demos at **[dwfoil-com.github.io/foil-experiments](https://dwfoil-com.github.io/foil-experiments/)**.
+No programming experience required. Browse the experiments and demos at **[experiments.dwfoil.com](https://experiments.dwfoil.com/)**.
 
 ---
 
