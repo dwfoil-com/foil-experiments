@@ -26,3 +26,12 @@ venv_mujoco/
 *.stl
 *.mp4
 *.avi
+
+# site/apps/* is build output copied from each project's own HTML/JS by
+# site/refresh-embeds.sh (also run automatically by the GitHub Pages
+# workflow before deploy). Never commit it directly — regenerate with:
+#   bash site/refresh-embeds.sh
+site/apps/
+
+# Downloadable MediaPipe model — see foil-mocap/README.md for the fetch URL.
+*.task
