@@ -190,6 +190,30 @@
   .fade-in { animation: fi .45s ease both; }
   @keyframes fi { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+  th[data-help] { cursor: help; border-bottom: 1px dotted rgba(21,34,41,.35); }
+  th.key, td.key { background: rgba(45,114,119,.07); }
+  th.key { color: var(--sea); }
+  td.key { font-weight: 700; font-size: 13.5px; }
+  td.delta { font-weight: 700; font-size: 13.5px; }
+  td.delta.good { color: #1d6b45; }
+  td.delta.bad { color: #a4462b; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; padding: 5px 6px 5px 9px;
+    border-radius: 999px; border: 1px solid var(--line); background: #fff; font-size: 12px;
+  }
+  .chip .dot { width: 11px; height: 11px; border-radius: 999px; flex: none; }
+  .chip .nm { font-weight: 600; }
+  .chip button {
+    border: 0; background: none; cursor: pointer; font: inherit; font-size: 11px;
+    color: var(--muted); padding: 2px 5px; border-radius: 999px;
+  }
+  .chip button:hover { background: rgba(21,34,41,.07); color: var(--ink); }
+  .chip button.on { background: var(--sea); color: #fff; }
+  .chip.live { background: rgba(45,114,119,.1); border-color: rgba(45,114,119,.35); }
+  .chip-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 2px; }
+
   .saved-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }
   .saved-row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .saved-row button {
@@ -269,6 +293,15 @@
           <summary>Show more detail</summary>
           <div class="more-body">
             <div class="ride" id="rideAdvanced"></div>
+            <p class="hint">
+              Typical sustained speeds: flatwater pumping 8 to 13&nbsp;mph, downwind 10 to 20,
+              surf 10 to 22, wing 12 to 25. This wing stalls near 8&nbsp;mph at your weight, which
+              is why the slow end is where the fuse sits worst aligned.
+            </p>
+            <p class="hint">
+              Feathering is how much of the flight-path swing you take out by pitching with the
+              stroke. It is the one number here with no independent source behind it.
+            </p>
           </div>
         </details>
       </div>
@@ -292,7 +325,6 @@
           </div>
         </div>
         <div class="ride" id="fuseRows"></div>
-        <button class="btn" id="addCompare" style="width:100%">Save to compare</button>
 
         <details class="more">
           <summary>Show more detail</summary>
@@ -308,16 +340,12 @@
       </div>
 
       <div class="card stack" data-for="compare" hidden>
-        <h2>Saved designs</h2>
-        <div id="savedList"></div>
-        <div class="row">
-          <label for="cmpB">Add a reference</label>
-          <span class="inp"><select id="cmpB"></select></span>
-        </div>
-        <button class="btn ghost" id="addRef">Add it</button>
+        <h2>Compare</h2>
+        <p class="hint">Shape a fuse on the left, save it, change it, save again. Everything saved
+          is drawn together on the right.</p>
         <button class="btn ghost" id="matchBase" style="width:100%">Re-size working fuse to the baseline</button>
-        <p class="hint">Gives the working fuse the baseline's vertical stiffness and material, so
-          the drag difference is down to outline alone.</p>
+        <p class="hint">Gives the working fuse the baseline's stiffness and material, so the drag
+          difference comes down to outline alone.</p>
       </div>
 
       <div class="card stack" data-for="simulate" hidden>
@@ -407,22 +435,47 @@
               <h2>Yours against a reference</h2>
               <span class="note" id="cmpAngle"></span>
             </div>
-            <canvas id="ccmp" height="220"></canvas>
+            <div class="chips" id="cmpChips"></div>
+            <div class="chip-add">
+              <button class="btn" id="saveCurrent">+ Save the fuse you are working on</button>
+              <span class="inp" style="max-width:200px"><select id="cmpB"></select></span>
+              <button class="btn ghost" id="addRef">+ Add this one</button>
+            </div>
+            <canvas id="ccmp" height="230"></canvas>
             <div style="overflow-x:auto">
               <table id="cmpTable">
                 <thead><tr>
-                  <th>Fuse</th><th>h &times; w</th><th>Chord</th><th>t/c</th>
-                  <th>Blunt LE</th><th>Blunt TE</th><th>Drag</th>
-                  <th>Stiffness</th><th>Area</th>
+                  <th>Fuse</th>
+                  <th data-help="size">h &times; w</th>
+                  <th class="key" data-help="drag">Drag</th>
+                  <th class="key" data-help="delta">vs baseline</th>
                 </tr></thead>
                 <tbody></tbody>
               </table>
             </div>
             <div id="cmpVerdict"></div>
+            <p class="hint">Hover any column heading for what it means. Drag and the difference
+              against the baseline are the two that decide anything.</p>
             <details class="more">
-              <summary>Show more detail</summary>
+              <summary>Show the full breakdown</summary>
               <div class="more-body">
-                <div class="canvas-head">
+                <div style="overflow-x:auto">
+                  <table id="cmpTableFull">
+                    <thead><tr>
+                      <th>Fuse</th>
+                      <th data-help="fine">Fineness</th>
+                      <th data-help="blunt">Corner bluntness</th>
+                      <th data-help="cd">Crossflow C<sub>d</sub></th>
+                      <th data-help="axial">Axial</th>
+                      <th data-help="cross">Crossflow</th>
+                      <th data-help="iyy">Stiffness &#8593;</th>
+                      <th data-help="izz">Stiffness &#8596;</th>
+                      <th data-help="area">Area mm&sup2;</th>
+                    </tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="canvas-head" style="margin-top:14px">
                   <h3>Drag against angle</h3>
                   <span class="note" id="dragNote"></span>
                 </div>
@@ -1215,8 +1268,8 @@ const S = {
   tab: "design",
   fuse: cloneFuse(LIBRARY.find(f => f.id === "typical")),
   alpha: 8, V: 4.5, slicePos: 0.5,
-  vmin: 4.0, vmax: 6.5,
-  designV: 4.0, designAngle: 8,
+  vmin: 4.023, vmax: 8.941,
+  designV: 4.023, designAngle: 8,
   cmpB: "rod-round", saved: [], baseline: 0,
   angleOverride: null, cfdSpeed: 1, izzKeep: 0.5,
   az: -0.62, el: 0.30, zoom: 1,
@@ -1410,14 +1463,16 @@ function speedSweep(fuse, p, vmin, vmax, n = 26) {
     // 5 samples, not 3: sin at 0, pi, 2pi is zero three times over and the swing
     // disappears. 5 lands exactly on the crest and the trough.
     const tr = pumpTrace(V, p, 5);
+    const dp = totalDrag(fuse, Math.abs(tr.max), V);
     out.push({
       V,
       trim: tr.trim,
       peak: tr.max,
       low: tr.min,
       stalled: tr.trim >= 12.99,
-      Dpeak: totalDrag(fuse, Math.abs(tr.max), V, 13).D,
-      Dtrim: totalDrag(fuse, Math.abs(tr.trim), V, 13).D
+      Dpeak: dp.D,
+      Dtrim: totalDrag(fuse, Math.abs(tr.trim), V).D,
+      share: dp.Dcr / Math.max(dp.D, 1e-9)
     });
   }
   return out;
@@ -2393,6 +2448,8 @@ function drawSweep(dp) {
   line(s => Y(s.peak), "#2d7277", 2.4);
   line(s => Y(s.trim), "#8b959a", 1.6, [5, 4]);
   line(s => Yd(s.Dpeak), "#bd6b3f", 1.8);
+  // share of drag coming from crossflow, on the angle axis scaled 0-100%
+  line(s => Y(aHi * s.share), "#4a6f9c", 1.6, [2, 3]);
 
   // the design point itself
   const dx = X(S.designV), dy = Y(S.designAngle);
@@ -2414,7 +2471,8 @@ function drawSweep(dp) {
     { colour: "#2d7277", label: "crest of the stroke" },
     { colour: "#8b959a", dash: true, label: "trim" },
     { colour: "rgba(45,114,119,0.4)", fill: "rgba(45,114,119,0.15)", label: "range within one stroke" },
-    { colour: "#bd6b3f", label: "fuse drag at the crest" }
+    { colour: "#bd6b3f", label: "fuse drag at the crest" },
+    { colour: "#4a6f9c", dash: true, label: "share of drag that outline can change" }
   ]);
 }
 
@@ -2441,24 +2499,32 @@ function updateDesign() {
   }
   if (isOpen("design")) drawSweep(dp);
   const fast = dp.sweep[dp.sweep.length - 1];
+  // Where the outline stops being able to change anything. Crossflow is the part
+  // shape controls, and it falls as sin cubed of an angle that is itself dropping
+  // with speed, while friction grows with speed squared.
+  const spent = dp.sweep.find(x => x.share < 0.2);
   document.getElementById("designMetrics").innerHTML = [
     metric("Design angle", S.designAngle.toFixed(1), "°"),
     metric("At", mph(S.designV).toFixed(1), "mph"),
     metric("Trim there", slow.trim.toFixed(1), "°"),
-    metric("Falls to", Math.abs(fast.peak).toFixed(1), "° at " + mph(fast.V).toFixed(1) + " mph"),
+    metric("Outline controls", (100 * slow.share).toFixed(0), "% of drag"),
+    metric("Spent above", spent ? mph(spent.V).toFixed(0) : "–", spent ? "mph" : ""),
     metric("Fuse drag", slow.Dpeak.toFixed(2), "N")
   ].join("");
 
   const el = document.getElementById("designFlag");
   el.className = "flag " + (slow.stalled ? "warn" : "ok");
-  el.textContent = (slow.stalled
-    ? `At ${mph(slow.V).toFixed(1)} mph this wing is asking for ${slow.trim.toFixed(1)}°, which is at its stall, so you are below the speed it will hold. `
-    : `Trim alone puts the fuse at ${slow.trim.toFixed(1)}° at your slowest pumping speed. `) +
-    `The stroke lifts that to ${S.designAngle.toFixed(1)}° at the crest, and that crest is where the
-     fuse costs the most, so it is what the section is drawn for. By ${mph(fast.V).toFixed(1)} mph the
-     crest has dropped to ${Math.abs(fast.peak).toFixed(1)}°. Absolute drag climbs with speed because
-     dynamic pressure does, but misalignment is worst down here, which is where shape earns its
-     keep.`.replace(/\s+/g, " ");
+  el.textContent = ((slow.stalled
+    ? `At ${mph(slow.V).toFixed(1)} mph this wing is asking for ${slow.trim.toFixed(1)}°, at or past its stall, so you are below the speed it will hold. `
+    : `The lift equation alone puts the fuse at ${slow.trim.toFixed(1)}° at your slowest speed. `) +
+    `The stroke lifts that to ${S.designAngle.toFixed(1)}° at the crest. By ${mph(fast.V).toFixed(0)} mph
+     the crest is down to ${Math.abs(fast.peak).toFixed(1)}°. Two things move opposite ways across
+     that range: friction grows with speed squared, while the crossflow the outline actually
+     controls falls as sin³ of an angle that is itself dropping. Crossflow is
+     ${(100 * slow.share).toFixed(0)}% of the drag at your slow end and
+     ${(100 * fast.share).toFixed(0)}% at your fast end` +
+    (spent ? `, and past ${mph(spent.V).toFixed(0)} mph it is under a fifth. Outline is a slow-speed argument.`
+           : `. Outline is earning its keep across your whole range.`)).replace(/\s+/g, " ");
 }
 
 /* =====================================================================
@@ -2486,27 +2552,24 @@ function cmpSet() {
 }
 
 function renderSavedList() {
-  const el = document.getElementById("savedList");
-  if (!el) return;
-  if (!S.saved.length) {
-    el.innerHTML = `<p class="hint">Nothing saved. Shape a fuse, press <b>Save to compare</b>,
-      change it, and save again to see the two side by side.</p>`;
-    return;
-  }
-  el.innerHTML = S.saved.map((sv, i) => `<div class="saved-row">
-      <span class="swatch" style="background:${sv.colour}"></span>
-      <span class="nm">${sv.name}</span>
-      <button type="button" data-base="${i + 1}" class="${S.baseline === i + 1 ? "on" : ""}" title="Use as baseline">base</button>
-      <button type="button" data-del="${i}" title="Remove">×</button>
-    </div>`).join("");
-  for (const b of el.querySelectorAll("[data-del]"))
-    b.addEventListener("click", () => {
-      S.saved.splice(+b.dataset.del, 1);
+  const host = document.getElementById("cmpChips");
+  if (!host) return;
+  const set = cmpSet();
+  host.innerHTML = set.map((x, i) => `<span class="chip${x.live ? " live" : ""}">
+      <span class="dot" style="background:${x.colour}"></span>
+      <span class="nm">${x.live ? "Working" : x.name}</span>
+      <button type="button" data-b="${i}" class="${S.baseline === i ? "on" : ""}"
+        title="Measure the others against this one">baseline</button>
+      ${x.live ? "" : `<button type="button" data-x="${i - 1}" title="Remove">✕</button>`}
+    </span>`).join("");
+  for (const btn of host.querySelectorAll("[data-b]"))
+    btn.addEventListener("click", () => { S.baseline = +btn.dataset.b; renderSavedList(); render(); });
+  for (const btn of host.querySelectorAll("[data-x]"))
+    btn.addEventListener("click", () => {
+      S.saved.splice(+btn.dataset.x, 1);
       if (S.baseline > S.saved.length) S.baseline = 0;
       renderSavedList(); render();
     });
-  for (const b of el.querySelectorAll("[data-base]"))
-    b.addEventListener("click", () => { S.baseline = +b.dataset.base; renderSavedList(); render(); });
 }
 
 function drawCompareAB() {
@@ -2557,45 +2620,70 @@ function drawCompareAB() {
     `all cut at ${S.alpha.toFixed(1)}°, ${mph(S.V).toFixed(1)} mph`;
 }
 
+const COL_HELP = {
+  size:  "Height and width of the fuse cross-section.",
+  fine:  "Height divided by width. A taller, narrower fuse is more streamlined to the crossflow, which is where most of the angle-dependent drag comes from.",
+  blunt: "How much of the full width the outline still has at its very top and bottom. Zero means it closes to a point and the flow stays attached. High means the crossflow separates off those corners.",
+  cd:    "Crossflow drag coefficient of the cross-section outline. Set by fineness, then multiplied up by the corner bluntness.",
+  drag:  "Total fuse drag at the design angle: axial skin friction plus the streamwise part of the crossflow force.",
+  delta: "Drag against the baseline design. Negative is better.",
+  iyy:   "Vertical bending stiffness, which resists the tail's download. Goes as width times height cubed.",
+  izz:   "Sideways bending stiffness. Goes as width cubed times height, so it is what a tall thin blade gives up.",
+  area:  "Cross-section area, standing in for weight.",
+  axial: "Skin friction along the fuse. Grows with speed squared and barely notices the angle.",
+  cross: "The streamwise part of the crossflow force. Scales as sin³ of the angle, so it fades fast as you speed up. This is the part the outline can change."
+};
+
 function updateABTable() {
   const tb = document.querySelector("#cmpTable tbody");
-  const set = cmpSet();
-  const rows = set.map(x => {
-    const sec = sectionFor(x.fuse, S.alpha, 0.5);
-    if (!sec) return null;
-    return { ...x, sec, D: totalDrag(x.fuse, S.alpha, S.V, 21).D, pr: sectionProps(x.fuse) };
-  }).filter(Boolean);
+  const rows = cmpSet().map(x => {
+    const t = totalDrag(x.fuse, S.alpha, S.V);
+    return { ...x, t, pr: sectionProps(x.fuse) };
+  });
   if (!rows.length) { tb.innerHTML = ""; return; }
   const base = rows[Math.min(S.baseline, rows.length - 1)];
 
+  const name = r => `<span class="swatch" style="background:${r.colour}"></span>` +
+    (r.live ? "Working" : r.name) + (r === base ? " · baseline" : "");
+
   tb.innerHTML = rows.map(r => {
-    const d = 100 * (r.D / Math.max(base.D, 1e-9) - 1);
-    const blunt = Math.max(r.sec.tLE, r.sec.tTE);
+    const d = 100 * (r.t.D / Math.max(base.t.D, 1e-9) - 1);
+    const cls = r === base ? "" : d < -0.5 ? "good" : d > 0.5 ? "bad" : "";
     return `<tr${r === base ? ' class="me"' : ""}>
-      <td><span class="swatch" style="background:${r.colour}"></span>${r.name}${r === base ? " (baseline)" : ""}</td>
+      <td>${name(r)}</td>
       <td>${(+r.fuse.h).toFixed(1)} × ${(+r.fuse.w).toFixed(1)}</td>
-      <td>${(100 * r.sec.tmax / r.sec.chord).toFixed(1)}%</td>
-      <td>${blunt > 0.3 ? blunt.toFixed(1) + " mm" : "–"}</td>
-      <td>${r.D.toFixed(2)} N</td>
-      <td>${r === base ? "–" : (d >= 0 ? "+" : "") + d.toFixed(0) + "%"}</td>
-      <td>${(r.pr.Iyy / 1000).toFixed(1)}k</td>
-      <td>${r.pr.area.toFixed(0)} mm²</td>
+      <td class="key">${r.t.D.toFixed(2)} N</td>
+      <td class="delta ${cls}">${r === base ? "–" : (d >= 0 ? "+" : "") + d.toFixed(0) + "%"}</td>
     </tr>`;
   }).join("");
 
+  const tf = document.querySelector("#cmpTableFull tbody");
+  if (tf) tf.innerHTML = rows.map(r => `<tr${r === base ? ' class="me"' : ""}>
+      <td>${name(r)}</td>
+      <td>${r.t.fineness.toFixed(2)}</td>
+      <td>${(100 * r.t.beta).toFixed(0)}%</td>
+      <td>${r.t.Cdc.toFixed(2)}</td>
+      <td>${r.t.Dax.toFixed(2)} N</td>
+      <td>${r.t.Dcr.toFixed(2)} N</td>
+      <td>${(r.pr.Iyy / 1000).toFixed(0)}k</td>
+      <td>${(r.pr.Izz / 1000).toFixed(0)}k</td>
+      <td>${r.pr.area.toFixed(0)}</td>
+    </tr>`).join("");
+
   const el = document.getElementById("cmpVerdict");
-  if (rows.length < 2) { el.className = "flag ok"; el.textContent =
-    "Save a second design to see the difference."; return; }
-  const best = rows.reduce((a, b) => a.D < b.D ? a : b);
-  const worst = rows.reduce((a, b) => a.D > b.D ? a : b);
-  const spread = 100 * (worst.D / Math.max(best.D, 1e-9) - 1);
-  const sameStiff = rows.every(r => Math.abs(r.pr.Iyy / base.pr.Iyy - 1) < 0.05);
-  el.className = "flag ok";
-  el.textContent = `Lowest drag is ${best.name} at ${best.D.toFixed(2)} N. The spread across
-    ${rows.length} designs is ${spread.toFixed(0)}%.` +
-    (rows.some(r => r.fuse.h > S.hMax) ? ` One of them is taller than the ${S.hMax} mm joint limit.` : "") +
-    (sameStiff ? " They all carry the same vertical stiffness, so that is a like-for-like difference."
-               : " Stiffness varies between them, so this is not like-for-like; check the stiffness column.");
+  if (rows.length < 2) {
+    el.className = "flag ok";
+    el.textContent = "Save a second design to see the difference.";
+    return;
+  }
+  const best = rows.reduce((a, b) => a.t.D < b.t.D ? a : b);
+  const sameStiff = rows.every(r => Math.abs(r.pr.Iyy / base.pr.Iyy - 1) < 0.05
+                                 && Math.abs(r.pr.area / base.pr.area - 1) < 0.05);
+  el.className = "flag " + (sameStiff ? "ok" : "warn");
+  el.textContent = `Lowest drag is ${best.live ? "the fuse you are working on" : best.name} at ` +
+    `${best.t.D.toFixed(2)} N. ` + (sameStiff
+      ? "They carry the same stiffness and the same material, so the difference is down to outline."
+      : "Stiffness or material differs across these, so this is not like-for-like. Use the re-size button on the left to match them before reading the percentages.");
 }
 
 /* =====================================================================
@@ -2727,10 +2815,10 @@ const RIDE_ADVANCED = [
     get: () => Math.round(S.pump.heave * 1000), set: v => S.pump.heave = v / 1000 },
   { id: "pfeather", label: "Feathering", unit: "%", min: 0, max: 95, step: 5,
     get: () => Math.round(S.pump.feather * 100), set: v => S.pump.feather = v / 100 },
-  { id: "vmin", label: "Slowest pump", unit: "mph", min: 4, max: 13, step: 0.5,
+  { id: "vmin", label: "Slowest speed", unit: "mph", min: 6, max: 22, step: 0.5,
     get: () => +mph(S.vmin).toFixed(1),
     set: v => { S.vmin = fromMph(v); if (S.vmax <= S.vmin + 0.2) S.vmax = S.vmin + 0.2; } },
-  { id: "vmax", label: "Fastest pump", unit: "mph", min: 7, max: 20, step: 0.5,
+  { id: "vmax", label: "Fastest speed", unit: "mph", min: 10, max: 35, step: 0.5,
     get: () => +mph(S.vmax).toFixed(1),
     set: v => S.vmax = Math.max(fromMph(v), S.vmin + 0.2) },
   { id: "izzKeep", label: "Side stiffness to keep", unit: "%", min: 10, max: 100, step: 5,
@@ -2845,6 +2933,15 @@ function init() {
   cmpSel.innerHTML = LIBRARY.map(f => `<option value="${f.id}">${f.name}</option>`).join("");
   cmpSel.value = S.cmpB;
   cmpSel.addEventListener("change", () => { S.cmpB = cmpSel.value; });
+  for (const th of document.querySelectorAll("th[data-help]"))
+    th.title = COL_HELP[th.dataset.help] || "";
+  document.getElementById("saveCurrent").addEventListener("click", () => {
+    addToCompare(S.fuse);
+    const b = document.getElementById("saveCurrent");
+    b.textContent = "Saved";
+    setTimeout(() => b.textContent = "+ Save the fuse you are working on", 900);
+    render();
+  });
   document.getElementById("addRef").addEventListener("click", () => {
     const f = LIBRARY.find(x => x.id === cmpSel.value);
     if (f) { addToCompare(f, f.name); render(); }
@@ -2855,13 +2952,6 @@ function init() {
     if (!base || base.live) return;
     const best = optimise(S.alpha, S.V, sectionProps(base.fuse)).best;
     if (best) { S.fuse.h = best.fuse.h; S.fuse.w = best.fuse.w; S.cache.clear(); syncControls(); render(); }
-  });
-  document.getElementById("addCompare").addEventListener("click", () => {
-    addToCompare(S.fuse);
-    const b = document.getElementById("addCompare");
-    b.textContent = "Saved";
-    setTimeout(() => b.textContent = "Save to compare", 900);
-    render();
   });
   renderSavedList();
 
