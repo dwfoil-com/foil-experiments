@@ -169,6 +169,12 @@
   .angle-read { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .angle-read .k { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
   .angle-read .v { font-size: 30px; font-weight: 600; color: var(--sea); font-variant-numeric: tabular-nums; }
+  .angle-stats {
+    display: grid; gap: 3px; font-size: 11.5px; color: var(--muted);
+    padding: 7px 0 1px; border-top: 1px solid rgba(45,114,119,.18);
+  }
+  .angle-stats b { color: var(--sea); font-size: 13px; }
+
   .angle-note { font-size: 11px; color: var(--muted); line-height: 1.45; }
   .angle-note button {
     background: none; border: 0; padding: 0; font: inherit; font-size: 11px;
@@ -194,6 +200,7 @@
   th.key, td.key { background: rgba(45,114,119,.07); }
   th.key { color: var(--sea); }
   td.key { font-weight: 700; font-size: 13.5px; }
+  td.key .delta { display: block; font-weight: 600; font-size: 11px; margin-top: 1px; }
   td.delta { font-weight: 700; font-size: 13.5px; }
   td.delta.good { color: #1d6b45; }
   td.delta.bad { color: #a4462b; }
@@ -279,12 +286,14 @@
           <p class="sub">The fuse angle is not a choice. It is whatever the lift equation demands.</p>
         </div>
         <div class="ride" id="rideBasic"></div>
+        <div class="ride" id="speedRows"></div>
 
         <div class="angle-box">
           <div class="angle-read">
             <span class="k">Fuse angle at the crest of your stroke</span>
             <span class="v" id="angleBig">–</span>
           </div>
+          <div class="angle-stats" id="angleStats"></div>
           <div class="ride" id="angleRow"></div>
           <div class="angle-note" id="angleNote"></div>
         </div>
@@ -447,8 +456,8 @@
                 <thead><tr>
                   <th>Fuse</th>
                   <th data-help="size">h &times; w</th>
-                  <th class="key" data-help="drag">Drag</th>
-                  <th class="key" data-help="delta">vs baseline</th>
+                  <th class="key" data-help="slow">At your slow end</th>
+                  <th class="key" data-help="fast">At your fast end</th>
                 </tr></thead>
                 <tbody></tbody>
               </table>
@@ -476,7 +485,7 @@
                   </table>
                 </div>
                 <div class="canvas-head" style="margin-top:14px">
-                  <h3>Drag against angle</h3>
+                  <h3>Drag against speed</h3>
                   <span class="note" id="dragNote"></span>
                 </div>
                 <canvas id="cdrag" height="230"></canvas>
@@ -1271,7 +1280,7 @@ const S = {
   vmin: 4.023, vmax: 8.941,
   designV: 4.023, designAngle: 8,
   cmpB: "rod-round", saved: [], baseline: 0,
-  angleOverride: null, cfdSpeed: 1, izzKeep: 0.5,
+  angleOverride: null, cfdSpeed: 1, izzKeep: 0.85,
   az: -0.62, el: 0.30, zoom: 1,
   hMax: 55,
   pump: { mass: 80, S: 0.09, AR: 13.9, f: 2.0, heave: 0.08, feather: 0.55 },
@@ -1854,28 +1863,29 @@ function drawCp(cfd) {
 /* =====================================================================
    Drag vs angle
    ===================================================================== */
+// Drag against speed, one line per design. At each speed the angle is whatever
+// trim plus the pump stroke gives, so this is the curve you actually ride along.
 function drawDragCurve() {
   const cv = document.getElementById("cdrag");
   const { ctx, w, h } = fit(cv);
-  const pad = { l: 46, r: 12, t: 14, b: 28 };
-  const angles = [];
-  for (let a = 0; a <= 24; a += 1.5) angles.push(a);
+  const set = cmpSet();
+  const N = 26;
+  const speeds = [];
+  for (let k = 0; k < N; k++) speeds.push(S.vmin + (S.vmax - S.vmin) * k / (N - 1));
 
-  const A = S.fuse, B = S.saved.length ? S.saved[0].fuse : null;
-  const series = [];
-  for (const lib of LIBRARY) {
-    if (lib.id === S.fuse.id) continue;
-    series.push({ colour: "rgba(21,34,41,0.16)", width: 1, ys: angles.map(a => totalDrag(lib, a, S.V, 13).D) });
-  }
-  if (B) series.push({ colour: "#bd6b3f", width: 2.2, dash: [5, 4],
-                       ys: angles.map(a => totalDrag(B, a, S.V, 13).D) });
-  if (A) series.push({ colour: "#2d7277", width: 2.8, ys: angles.map(a => totalDrag(A, a, S.V, 13).D) });
-
+  const series = set.map(x => ({
+    colour: x.colour, live: x.live, name: x.live ? "working" : x.name,
+    ys: speeds.map(V => {
+      const tr = pumpTrace(V, S.pump, 5);
+      return totalDrag(x.fuse, Math.abs(tr.max), V).D;
+    })
+  }));
   let dMax = 0;
-  for (const s of series) for (const y of s.ys) dMax = Math.max(dMax, y);
-  dMax = Math.min(Math.max(dMax, 0.5) * 1.12, 14);
+  for (const s2 of series) for (const y of s2.ys) dMax = Math.max(dMax, y);
+  dMax = Math.max(dMax, 0.5) * 1.12;
 
-  const X = a => pad.l + a / 24 * (w - pad.l - pad.r);
+  const pad = { l: 46, r: 14, t: 14, b: 28 };
+  const X = V => pad.l + (V - S.vmin) / Math.max(S.vmax - S.vmin, 1e-6) * (w - pad.l - pad.r);
   const Y = d => h - pad.b - d / dMax * (h - pad.t - pad.b);
 
   ctx.strokeStyle = "rgba(21,34,41,0.1)"; ctx.lineWidth = 1;
@@ -1884,38 +1894,29 @@ function drawDragCurve() {
     ctx.beginPath(); ctx.moveTo(pad.l, Y(d)); ctx.lineTo(w - pad.r, Y(d)); ctx.stroke();
     text(ctx, d.toFixed(1), pad.l - 6, Y(d) + 3, { align: "right" });
   }
-  for (let a = 0; a <= 24; a += 6) text(ctx, a + "°", X(a), h - 10, { align: "center" });
-  text(ctx, "N", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
-
-  for (const s of series) {
-    ctx.save();
-    if (s.dash) ctx.setLineDash(s.dash);
-    ctx.beginPath();
-    s.ys.forEach((y, i) => {
-      const yy = Math.min(y, dMax);
-      i ? ctx.lineTo(X(angles[i]), Y(yy)) : ctx.moveTo(X(angles[i]), Y(yy));
-    });
-    ctx.strokeStyle = s.colour; ctx.lineWidth = s.width; ctx.stroke();
-    ctx.restore();
+  for (let i = 0; i <= 4; i++) {
+    const V = S.vmin + (S.vmax - S.vmin) * i / 4;
+    text(ctx, mph(V).toFixed(0), X(V), h - 9, { align: "center" });
   }
+  text(ctx, "N", 10, pad.t + 10, { font: "600 11px 'Avenir Next', sans-serif" });
+  text(ctx, "mph", w - pad.r, h - 9, { align: "right", colour: "#8b959a" });
 
-  // the band the pump cycle actually spends its time in
-  const tr = pumpTrace(S.V, S.pump);
-  ctx.fillStyle = "rgba(45,114,119,0.10)";
-  ctx.fillRect(X(Math.max(0, tr.min)), pad.t, X(Math.min(24, tr.max)) - X(Math.max(0, tr.min)), h - pad.t - pad.b);
-  text(ctx, "pump range", X(Math.max(0, tr.min)) + 4, pad.t + 11, { colour: "#2d7277" });
-
-  ctx.setLineDash([4, 3]); ctx.strokeStyle = "rgba(21,34,41,0.35)";
-  ctx.beginPath(); ctx.moveTo(X(S.alpha), pad.t); ctx.lineTo(X(S.alpha), h - pad.b); ctx.stroke();
-  ctx.setLineDash([]);
-
-  document.getElementById("dragNote").textContent = `at ${mph(S.V).toFixed(1)} mph`;
-  legend("dragLegend", [
-    { colour: "#2d7277", label: "working" },
-    ...(B ? [{ colour: "#bd6b3f", dash: true, label: S.saved[0].name }] : []),
-    { colour: "rgba(21,34,41,0.28)", label: "the rest of the library" },
-    { colour: "rgba(45,114,119,0.35)", fill: "rgba(45,114,119,0.18)", label: "where the pump stroke runs" }
-  ]);
+  for (const s2 of series) {
+    ctx.save();
+    if (!s2.live) ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    s2.ys.forEach((y, i) => i ? ctx.lineTo(X(speeds[i]), Y(y)) : ctx.moveTo(X(speeds[i]), Y(y)));
+    ctx.strokeStyle = s2.colour; ctx.lineWidth = s2.live ? 2.6 : 2; ctx.stroke();
+    ctx.restore();
+    // label at the right-hand end so the line needs no legend
+    const last = s2.ys[s2.ys.length - 1];
+    text(ctx, s2.name, X(S.vmax) - 4, Y(last) - 6,
+      { align: "right", colour: s2.colour, font: "600 11px 'Avenir Next', sans-serif" });
+  }
+  document.getElementById("dragNote").textContent =
+    `across your ${mph(S.vmin).toFixed(0)} to ${mph(S.vmax).toFixed(0)} mph range`;
+  legend("dragLegend", [{ colour: "#8b959a",
+    label: "angle at each speed is trim plus the pump stroke, so this is the curve you ride along" }]);
 }
 
 /* =====================================================================
@@ -2503,6 +2504,12 @@ function updateDesign() {
   // shape controls, and it falls as sin cubed of an angle that is itself dropping
   // with speed, while friction grows with speed squared.
   const spent = dp.sweep.find(x => x.share < 0.2);
+  const stats = document.getElementById("angleStats");
+  if (stats) stats.innerHTML =
+    `<span><b>${(100 * slow.share).toFixed(0)}%</b> of the drag is yours to change</span>` +
+    `<span>${spent ? `spent above <b>${mph(spent.V).toFixed(0)} mph</b>`
+                   : `still paying at <b>${mph(fast.V).toFixed(0)} mph</b>`}</span>`;
+
   document.getElementById("designMetrics").innerHTML = [
     metric("Design angle", S.designAngle.toFixed(1), "°"),
     metric("At", mph(S.designV).toFixed(1), "mph"),
@@ -2625,8 +2632,8 @@ const COL_HELP = {
   fine:  "Height divided by width. A taller, narrower fuse is more streamlined to the crossflow, which is where most of the angle-dependent drag comes from.",
   blunt: "How much of the full width the outline still has at its very top and bottom. Zero means it closes to a point and the flow stays attached. High means the crossflow separates off those corners.",
   cd:    "Crossflow drag coefficient of the cross-section outline. Set by fineness, then multiplied up by the corner bluntness.",
-  drag:  "Total fuse drag at the design angle: axial skin friction plus the streamwise part of the crossflow force.",
-  delta: "Drag against the baseline design. Negative is better.",
+  slow:  "Fuse drag at the slowest speed in your range, where the wing is forcing a big angle and the outline matters most. Percentage is against the baseline design.",
+  fast:  "Fuse drag at the fastest speed in your range, where the angle has collapsed and most of what is left is skin friction.",
   iyy:   "Vertical bending stiffness, which resists the tail's download. Goes as width times height cubed.",
   izz:   "Sideways bending stiffness. Goes as width cubed times height, so it is what a tall thin blade gives up.",
   area:  "Cross-section area, standing in for weight.",
@@ -2636,26 +2643,35 @@ const COL_HELP = {
 
 function updateABTable() {
   const tb = document.querySelector("#cmpTable tbody");
-  const rows = cmpSet().map(x => {
-    const t = totalDrag(x.fuse, S.alpha, S.V);
-    return { ...x, t, pr: sectionProps(x.fuse) };
-  });
+  const at = (fuse, V) => {
+    const tr = pumpTrace(V, S.pump, 5);
+    return totalDrag(fuse, Math.abs(tr.max), V);
+  };
+  const rows = cmpSet().map(x => ({
+    ...x,
+    t: totalDrag(x.fuse, S.alpha, S.V),
+    slow: at(x.fuse, S.vmin),
+    fast: at(x.fuse, S.vmax),
+    pr: sectionProps(x.fuse)
+  }));
   if (!rows.length) { tb.innerHTML = ""; return; }
   const base = rows[Math.min(S.baseline, rows.length - 1)];
 
   const name = r => `<span class="swatch" style="background:${r.colour}"></span>` +
     (r.live ? "Working" : r.name) + (r === base ? " · baseline" : "");
 
-  tb.innerHTML = rows.map(r => {
-    const d = 100 * (r.t.D / Math.max(base.t.D, 1e-9) - 1);
-    const cls = r === base ? "" : d < -0.5 ? "good" : d > 0.5 ? "bad" : "";
-    return `<tr${r === base ? ' class="me"' : ""}>
+  const cell = (mine, theirs, isBase) => {
+    const d = 100 * (mine.D / Math.max(theirs.D, 1e-9) - 1);
+    const cls = isBase ? "" : d < -0.5 ? "good" : d > 0.5 ? "bad" : "";
+    return `<td class="key">${mine.D.toFixed(2)} N
+      <span class="delta ${cls}">${isBase ? "baseline" : (d >= 0 ? "+" : "") + d.toFixed(0) + "%"}</span></td>`;
+  };
+  tb.innerHTML = rows.map(r => `<tr${r === base ? ' class="me"' : ""}>
       <td>${name(r)}</td>
       <td>${(+r.fuse.h).toFixed(1)} × ${(+r.fuse.w).toFixed(1)}</td>
-      <td class="key">${r.t.D.toFixed(2)} N</td>
-      <td class="delta ${cls}">${r === base ? "–" : (d >= 0 ? "+" : "") + d.toFixed(0) + "%"}</td>
-    </tr>`;
-  }).join("");
+      ${cell(r.slow, base.slow, r === base)}
+      ${cell(r.fast, base.fast, r === base)}
+    </tr>`).join("");
 
   const tf = document.querySelector("#cmpTableFull tbody");
   if (tf) tf.innerHTML = rows.map(r => `<tr${r === base ? ' class="me"' : ""}>
@@ -2676,14 +2692,23 @@ function updateABTable() {
     el.textContent = "Save a second design to see the difference.";
     return;
   }
-  const best = rows.reduce((a, b) => a.t.D < b.t.D ? a : b);
+  const nm = r => r.live ? "the fuse you are working on" : r.name;
+  const bestSlow = rows.reduce((a, b) => a.slow.D < b.slow.D ? a : b);
+  const bestFast = rows.reduce((a, b) => a.fast.D < b.fast.D ? a : b);
+  const spreadSlow = 100 * (Math.max(...rows.map(r => r.slow.D)) / Math.max(bestSlow.slow.D, 1e-9) - 1);
+  const spreadFast = 100 * (Math.max(...rows.map(r => r.fast.D)) / Math.max(bestFast.fast.D, 1e-9) - 1);
   const sameStiff = rows.every(r => Math.abs(r.pr.Iyy / base.pr.Iyy - 1) < 0.05
                                  && Math.abs(r.pr.area / base.pr.area - 1) < 0.05);
   el.className = "flag " + (sameStiff ? "ok" : "warn");
-  el.textContent = `Lowest drag is ${best.live ? "the fuse you are working on" : best.name} at ` +
-    `${best.t.D.toFixed(2)} N. ` + (sameStiff
-      ? "They carry the same stiffness and the same material, so the difference is down to outline."
-      : "Stiffness or material differs across these, so this is not like-for-like. Use the re-size button on the left to match them before reading the percentages.");
+  el.textContent = (
+    `At ${mph(S.vmin).toFixed(0)} mph the best of these is ${nm(bestSlow)}, and the spread across them
+     is ${spreadSlow.toFixed(0)}%. At ${mph(S.vmax).toFixed(0)} mph it is ${nm(bestFast)}, and the
+     spread has ${spreadFast < spreadSlow ? "closed to" : "opened to"} ${spreadFast.toFixed(0)}%` +
+    (bestSlow !== bestFast ? ", so the order changes across your range. " : ". ") +
+    (sameStiff
+      ? "They carry the same stiffness and the same material, so this is down to outline."
+      : "Stiffness or material differs across these, so it is not like-for-like. Use the re-size button on the left first.")
+  ).replace(/\s+/g, " ");
 }
 
 /* =====================================================================
@@ -2806,6 +2831,14 @@ const RIDE_BASIC = [
   { id: "pwing", label: "Front wing", unit: "cm²", min: 400, max: 2500, step: 10,
     get: () => Math.round(S.pump.S * 1e4), set: v => S.pump.S = v / 1e4 }
 ];
+const RIDE_SPEED = [
+  { id: "vmin", label: "Slowest speed", unit: "mph", min: 6, max: 22, step: 0.5,
+    get: () => +mph(S.vmin).toFixed(1),
+    set: v => { S.vmin = fromMph(v); if (S.vmax <= S.vmin + 0.2) S.vmax = S.vmin + 0.2; } },
+  { id: "vmax", label: "Fastest speed", unit: "mph", min: 10, max: 35, step: 0.5,
+    get: () => +mph(S.vmax).toFixed(1),
+    set: v => S.vmax = Math.max(fromMph(v), S.vmin + 0.2) }
+];
 const RIDE_ADVANCED = [
   { id: "par", label: "Aspect ratio", unit: "", min: 4, max: 20, step: 0.1,
     get: () => S.pump.AR, set: v => S.pump.AR = v },
@@ -2815,15 +2848,10 @@ const RIDE_ADVANCED = [
     get: () => Math.round(S.pump.heave * 1000), set: v => S.pump.heave = v / 1000 },
   { id: "pfeather", label: "Feathering", unit: "%", min: 0, max: 95, step: 5,
     get: () => Math.round(S.pump.feather * 100), set: v => S.pump.feather = v / 100 },
-  { id: "vmin", label: "Slowest speed", unit: "mph", min: 6, max: 22, step: 0.5,
-    get: () => +mph(S.vmin).toFixed(1),
-    set: v => { S.vmin = fromMph(v); if (S.vmax <= S.vmin + 0.2) S.vmax = S.vmin + 0.2; } },
-  { id: "vmax", label: "Fastest speed", unit: "mph", min: 10, max: 35, step: 0.5,
-    get: () => +mph(S.vmax).toFixed(1),
-    set: v => S.vmax = Math.max(fromMph(v), S.vmin + 0.2) },
   { id: "izzKeep", label: "Side stiffness to keep", unit: "%", min: 10, max: 100, step: 5,
     get: () => Math.round(S.izzKeep * 100), set: v => S.izzKeep = v / 100 }
 ];
+
 // Typing here overrides the computed angle; the note offers a way back.
 const ANGLE_ROW = [
   { id: "alphaSet", label: "Override the angle", unit: "°", min: 0, max: 30, step: 0.5,
@@ -2889,6 +2917,22 @@ function syncRows(defs) {
   }
 }
 
+// The comparison worth opening on is the one people actually ask about: the
+// rounded rectangle they are holding against an aerofoil carrying the same
+// stiffness and the same material. Built on first open so load stays quick.
+let compareSeeded = false;
+function seedCompare() {
+  if (compareSeeded || S.saved.length) return;
+  compareSeeded = true;
+  const target = sectionProps(S.fuse);
+  const held = S.fuse;
+  S.fuse = Object.assign(cloneFuse(held), { section: { type: "naca", flip: false } });
+  let best = null;
+  try { best = optimise(S.alpha, S.V, target).best; } catch (e) { best = null; }
+  S.fuse = held;
+  if (best) addToCompare(best.fuse, "Aerofoil, matched to yours");
+}
+
 function setStage(name, open) {
   const el = document.querySelector(`[data-stage="${name}"]`);
   if (!el) return;
@@ -2896,12 +2940,13 @@ function setStage(name, open) {
   if (name === "simulate") cfdInView = open;
   // the controls that drive a stage only appear while that stage is showing
   for (const c of document.querySelectorAll(`[data-for="${name}"]`)) c.hidden = !open;
+  if (open && name === "compare") seedCompare();
   if (open) render();
 }
 
 function syncControls() {
   const f = S.fuse;
-  syncRows(RIDE_BASIC); syncRows(RIDE_ADVANCED); syncRows(ANGLE_ROW);
+  syncRows(RIDE_BASIC); syncRows(RIDE_SPEED); syncRows(RIDE_ADVANCED); syncRows(ANGLE_ROW);
   syncRows(SHAPE_ROWS); syncRows(FUSE_ROWS); syncRows(SLICE_ROW); syncRows(SIM_ROWS);
   const note = document.getElementById("presetNote");
   if (note) note.textContent = f.note || "";
@@ -2956,6 +3001,7 @@ function init() {
   renderSavedList();
 
   buildRows("rideBasic", RIDE_BASIC);
+  buildRows("speedRows", RIDE_SPEED);
   buildRows("rideAdvanced", RIDE_ADVANCED);
   buildRows("angleRow", ANGLE_ROW);
   buildRows("shapeRows", SHAPE_ROWS);
