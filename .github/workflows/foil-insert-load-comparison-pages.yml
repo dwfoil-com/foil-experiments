@@ -45,3 +45,6 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Pages processing can exceed the 10-minute default; give it 30.
+          timeout: 1800000
