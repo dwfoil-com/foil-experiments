@@ -82,6 +82,14 @@ of chord `L`, which is the familiar picture of a fuse.
 6. A pump-cycle model that works out what angle the fuse actually sees.
 7. Fuse drag against pump angle for every shape at once, with the pump cycle's range shaded.
 8. All six shapes cut at the same angle on a common chord axis, with a table.
+9. A line-up stage: a protractor-style angle dragger, CAD fashion, and every chosen fuse drawn
+   side by side on one scale. Each tile pairs the fuse's own cross-section with the slice the
+   water crosses at that angle, plus chord, t/c and drag.
+10. The cross-sections in the line-up are editable, surfboard-template style: bezier anchor
+    points with tangent handles. Drag a point, drag the handles to set the angle through it,
+    click the outline to add a point, double-click to remove one. Sculpting the working fuse
+    reshapes it across the whole playground; sculpting a preset makes a private copy with a
+    reset.
 
 ## The optimiser
 
@@ -218,4 +226,6 @@ it into an issue. Callipers and a brand name beat my guesses every time.
 }
 ```
 
-Section types are `superellipse` (with `n`), `rect` (with `fillet` in mm), and `naca` (with `flip`).
+Section types are `superellipse` (with `n`), `rect` (with `fillet` in mm), `naca` (with `flip`),
+and `custom` (with `pts`: bezier anchors as `{z, w, iz, iw, oz, ow}` in normalised height and
+half-width, the format the sculpting editor writes).
