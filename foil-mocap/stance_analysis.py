@@ -74,6 +74,10 @@ class CropTracker:
         if self.box is None:
             return None
         cx, cy, size = self.box
+        # A rider who already fills a third of the frame gains nothing from cropping,
+        # and the moving window makes the tracking flicker, so only crop small figures.
+        if size > 0.2 * self.h:
+            return None
         half = size * self.margin / 2
         x0 = int(max(0, cx - half)); y0 = int(max(0, cy - half))
         x1 = int(min(self.w, cx + half)); y1 = int(min(self.h, cy + half))
@@ -87,10 +91,12 @@ class CropTracker:
         size = max(xs.max() - xs.min(), ys.max() - ys.min())
         if self.box is None:
             self.box = (cx, cy, size)
-        else:
-            a = 0.3
-            ocx, ocy, osz = self.box
-            self.box = (ocx + a * (cx - ocx), ocy + a * (cy - ocy), osz + a * (size - osz))
+            return
+        # Sticky window: only move when the rider drifts well off centre or changes
+        # size a lot, so the crop stays fixed and MediaPipe's tracking is not upset.
+        ocx, ocy, osz = self.box
+        if abs(cx - ocx) > 0.2 * osz or abs(cy - ocy) > 0.2 * osz or size > 1.3 * osz or size < 0.7 * osz:
+            self.box = (cx, cy, size)
 
     def lost(self):
         self.box = None
@@ -131,8 +137,12 @@ def run_pose(video_path, model_path, start=0.0, end=None, autocrop=True):
             img = np.ascontiguousarray(crop)
         else:
             x0 = y0 = 0; scale = 1.0; img = rgb
-        res = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=img),
-                                  int((idx - f0) * 1000 / fps))
+        ts = int((idx - f0) * 1000 / fps)
+        res = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=img), ts)
+        if not res.pose_landmarks and win:
+            # Lost inside the crop: retry on the full frame before giving up on it.
+            x0 = y0 = 0; scale = 1.0; img = rgb
+            res = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=img), ts + 1)
         if res.pose_landmarks:
             p = res.pose_landmarks[0]; w = res.pose_world_landmarks[0]
             px = np.array([[q.x * img.shape[1] / scale + x0, q.y * img.shape[0] / scale + y0] for q in p])

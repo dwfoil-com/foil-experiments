@@ -4,8 +4,8 @@ Re-run stance_analysis.py according to stance/review.json.
 For each reviewed clip:
   relevant == "no"      -> its output JSON is moved to stance/output/excluded/ so the
                            report and the browser app stop using it
-  relevant == "yes"     -> re-analysed on the chosen start/end window (source-clip
-                           seconds) with the chosen group, keeping the original label,
+  relevant == "yes"     -> re-analysed on the chosen start/end window (seconds on the
+                           overlay video plus its window_offset) with the chosen group, keeping the original label,
                            source and note
   "unsure" or unmarked  -> left as is
 
@@ -46,7 +46,11 @@ def main():
             continue
         if r.get("relevant") != "yes":
             print(f"leave  {stem} ({r.get('relevant') or 'unmarked'})"); continue
-        start, end = r.get("start"), r.get("end")
+        off = r.get("window_offset") or 0
+        start = None if r.get("start") is None else r["start"] + off
+        end = None if r.get("end") is None else r["end"] + off
+        if start is None and off: start = off
+        if end is None and s.get("end"): end = s["end"]
         group = r.get("group") or s["group"]
         same_window = (start is None or abs(start - (s.get("start") or 0)) < 0.05) and (end is None or (s.get("end") and abs(end - s["end"]) < 0.05))
         if same_window and group == s["group"]:
@@ -62,6 +66,11 @@ def main():
         print(f"rerun  {stem}: {start} to {end} s as {group}")
         if not dry:
             subprocess.run(cmd, check=True)
+            # The overlay video now starts at the new window, so re-base the review entry onto it.
+            r["window_offset"] = start or 0
+            r["start"] = 0.0 if start is not None else None
+            r["end"] = (end - (start or 0)) if end is not None else None
+            REVIEW.write_text(json.dumps(review, indent=1))
     if not dry:
         subprocess.run([sys.executable, str(HERE / "build_stance_report.py"), "--web"], check=True)
 

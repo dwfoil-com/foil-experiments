@@ -271,6 +271,7 @@ def clip_cards(clips):
       <button type="button" class="rv-btn rv-setend">End = now</button>
       <button type="button" class="rv-btn rv-play">Play window</button>
       <span class="rv-now muted">0.0 s</span>
+      <span class="muted">{'times are on this overlay video, which starts at source ' + fmt(s.get('start'), 1) + ' s' if s.get('start') else 'times are seconds into the clip'}</span>
     </div>
     <div class="rv-row">
       <span class="rv-label">Note</span>
@@ -410,11 +411,11 @@ document.querySelectorAll('.review').forEach(box => {{
   const card = box.closest('.card'), video = card.querySelector('video'), off = +box.dataset.offset || 0;
   const now = box.querySelector('.rv-now'), startIn = box.querySelector('.rv-start'), endIn = box.querySelector('.rv-end');
   const grp = card.querySelector('.badge'); if (grp) box.querySelector('.rv-group').value = grp.textContent.trim();
-  video.addEventListener('timeupdate', () => {{ now.textContent = (video.currentTime + off).toFixed(1) + ' s'; }});
-  box.querySelector('.rv-setstart').onclick = () => {{ startIn.value = (video.currentTime + off).toFixed(1); save(box); }};
-  box.querySelector('.rv-setend').onclick = () => {{ endIn.value = (video.currentTime + off).toFixed(1); save(box); }};
+  video.addEventListener('timeupdate', () => {{ now.textContent = video.currentTime.toFixed(1) + ' s' + (off ? ` (source ${{(video.currentTime + off).toFixed(1)}} s)` : ''); }});
+  box.querySelector('.rv-setstart').onclick = () => {{ startIn.value = video.currentTime.toFixed(1); save(box); }};
+  box.querySelector('.rv-setend').onclick = () => {{ endIn.value = video.currentTime.toFixed(1); save(box); }};
   box.querySelector('.rv-play').onclick = () => {{
-    const a = (startIn.value === '' ? off : +startIn.value) - off, b = endIn.value === '' ? video.duration : +endIn.value - off;
+    const a = startIn.value === '' ? 0 : +startIn.value, b = endIn.value === '' ? video.duration : +endIn.value;
     video.currentTime = Math.max(0, a); video.play();
     const stop = () => {{ if (video.currentTime >= b) {{ video.pause(); video.removeEventListener('timeupdate', stop); }} }};
     video.addEventListener('timeupdate', stop);
