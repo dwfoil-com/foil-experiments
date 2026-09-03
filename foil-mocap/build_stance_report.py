@@ -249,7 +249,10 @@ def card(s, series, i):
     return f"""
 <section class="card" id="{s['stem']}">
   <div class="row">
-    <video src="{s['video_rel']}" controls muted preload="metadata"></video>
+    <div class="pair">
+      <video src="{s['video_rel']}" controls muted preload="metadata"></video>
+      <video src="output/{s['stem']}_skel.mp4" controls muted preload="metadata" class="skel"></video>
+    </div>
     <div>
       <h3><span class="badge" style="background:{GROUP_COL.get(s['group'], '#888')}">{s['group']}</span> {html.escape(s['label'])}</h3>
       <p class="muted">{note} {src} &middot; {win} &middot; tracked {s['tracked_pct']:.0f}% &middot; front foot {s['front_foot']}</p>
@@ -330,8 +333,9 @@ svg.dot,svg.line{{width:100%;height:auto;display:block}}
 .card{{background:var(--surface-2);border-radius:10px;padding:14px;margin:14px 0}}
 .badge{{display:inline-block;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;vertical-align:middle;margin-right:4px}}
 .contact{{width:100%;border-radius:6px;display:block;margin:8px 0}}
-.row{{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:14px;align-items:start}}
-video{{width:100%;max-height:420px;background:#000;border-radius:6px}}
+.row{{display:grid;grid-template-columns:minmax(300px,520px) 1fr;gap:14px;align-items:start}}
+.pair{{display:grid;grid-template-columns:1fr 1fr;gap:6px}}
+video{{width:100%;max-height:360px;background:#000;border-radius:6px}} video.skel{{background:#f6f4f0}}
 .stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:8px 0}} .stat{{background:var(--surface);border-radius:6px;padding:8px 10px}} .stat b{{font-size:20px;display:block}} .stat span{{font-size:12px;color:var(--text-2)}}
 .stats.key .stat b{{font-size:24px}}
 path.front{{fill:none;stroke:var(--front);stroke-width:2}} path.back{{fill:none;stroke:var(--back);stroke-width:2}}
@@ -354,7 +358,7 @@ details.section{{background:var(--surface-2);border-radius:10px;padding:10px 14p
 </style></head><body><main>
 <div class="rvbar"><span>Review: <b id="rv-count">0</b> of <b>{len(clips)}</b> clips marked</span><span id="rv-server" class="muted">checking save server…</span><button type="button" class="rv-btn" id="rv-copy">Copy review JSON</button><button type="button" class="rv-btn" id="rv-next">Jump to next unreviewed</button></div>
 <h1>Pump Stance Review</h1>
-<p class="muted">Does the front leg share the pump? Two numbers per clip: how much deeper the back knee bends than the front at the bottom of each pump (0 means equal), and how much more the back knee moves than the front over the cycle (1.0 means equal). Front leg is red in the overlays, back leg cyan.</p>
+<p class="muted">Each clip shows the tracked overlay and, beside it, the same movement as a hips-pinned side view built from the 3D landmarks, so every clip is in the same frame whatever the camera angle. Does the front leg share the pump? Two numbers per clip: how much deeper the back knee bends than the front at the bottom of each pump (0 means equal), and how much more the back knee moves than the front over the cycle (1.0 means equal). Front leg is red in the overlays, back leg cyan.</p>
 
 <div class="grid2">{top_dots}</div>
 

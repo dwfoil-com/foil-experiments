@@ -264,7 +264,7 @@ def compute_metrics(fps, px, world, vis, front_override="auto"):
         tracked=valid.tolist(),
     )
     per_frame = dict(front_knee=front_knee, back_knee=back_knee, stance_w=stance_w, hip_frac=hip_frac,
-                     knee_over_ankle=knee_over_ankle, left_front=left_front)
+                     knee_over_ankle=knee_over_ankle, left_front=left_front, world=world, fwd=fwd, hip_y_rel=hip_y_rel)
     return summary, series, per_frame, px
 
 
@@ -327,6 +327,94 @@ def render(frames, px, per_frame, fps, out_path, label, contact_path):
     tmp.unlink()
 
 
+SKEL_BONES = [(11, 12), (11, 13), (13, 15), (12, 14), (14, 16), (11, 23), (12, 24), (23, 24),
+              (0, 11), (0, 12)]
+
+
+def render_skeleton(per_frame, fps, out_path, label, size=(720, 720), pin="hips"):
+    """Side-on, hips-pinned skeleton from the 3D world landmarks.
+
+    Every clip lands in the same view whatever the camera angle: the rider faces
+    right, the hips sit at a fixed point, and the feet leave two-second traces
+    so the shape of the pump is visible. This is the "fixed hips" view from the
+    earlier motion-capture experiment, rebuilt from MediaPipe world landmarks.
+    """
+    W, H = size
+    world, fwd = per_frame["world"], per_frame["fwd"]
+    lf = per_frame["left_front"]
+    n = len(world)
+    # Slow the forward axis down so the view does not twitch with every stride.
+    fwd_s = np.array([np.nanmean(fwd[max(0, i - int(fps)):i + int(fps) + 1], axis=0) for i in range(n)])
+    fwd_s /= (np.linalg.norm(fwd_s, axis=1)[:, None] + 1e-9)
+    leg = np.nanmedian(np.linalg.norm(world[:, 23] - world[:, 25], axis=1) + np.linalg.norm(world[:, 25] - world[:, 27], axis=1))
+    scale = 0.30 * H / max(leg, 0.3)          # one leg length = 30 percent of frame height
+    hip_px = (W * 0.45, H * 0.42)
+    vw = cv2.VideoWriter(str(out_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (W, H))
+    fi, bi = (27, 28) if lf else (28, 27)
+    fk, bk = (25, 26) if lf else (26, 25)
+    fh, bh = (23, 24) if lf else (24, 23)
+    tr_f, tr_b = deque(maxlen=int(fps * 2)), deque(maxlen=int(fps * 2))
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    bg = (246, 244, 240)
+    last_ok, last_i = None, -999
+    for i in range(n):
+        img = np.full((H, W, 3), bg, dtype=np.uint8)
+        ok = not np.isnan(world[i, 0, 0])
+        if ok:
+            last_ok, last_i = (world[i], fwd_s[i]), i
+        # Hold the last pose through short gaps so the view does not blink.
+        if not ok and last_ok is not None and i - last_i <= int(fps):
+            wf, f = last_ok
+            stale = True
+        elif ok:
+            wf, f = world[i], fwd_s[i]
+            stale = False
+        else:
+            cv2.putText(img, "tracking lost", (20, 40), font, 0.7, (150, 150, 150), 2, cv2.LINE_AA)
+            vw.write(img); continue
+        hip_c = (wf[23] + wf[24]) / 2
+        rel = wf - hip_c
+        xs = rel[:, 0] * f[0] + rel[:, 2] * f[2]          # along the stance line, front foot positive
+        ys = rel[:, 1]                                      # MediaPipe y is down
+        pts = np.stack([hip_px[0] + xs * scale, hip_px[1] + ys * scale], axis=1).astype(int)
+        # ground line under the lower ankle
+        gy = int(max(pts[27][1], pts[28][1]))
+        cv2.line(img, (0, gy), (W, gy), (200, 196, 190), 1)
+        cv2.line(img, (0, gy + 1), (W, gy + 1), (215, 225, 235), 6)
+        # traces
+        tr_f.append(tuple(pts[fi])); tr_b.append(tuple(pts[bi]))
+        for tr, col in ((tr_f, (60, 60, 230)), (tr_b, (200, 170, 0))):
+            p = list(tr)
+            for k in range(1, len(p)):
+                a = k / len(p)
+                cv2.line(img, p[k - 1], p[k], tuple(int(bg[c] + (col[c] - bg[c]) * a) for c in range(3)), 2, cv2.LINE_AA)
+        # bones
+        for a, b in SKEL_BONES:
+            cv2.line(img, tuple(pts[a]), tuple(pts[b]), (70, 70, 70), 3, cv2.LINE_AA)
+        for hip, knee, ank, col in ((fh, fk, fi, (60, 60, 230)), (bh, bk, bi, (200, 170, 0))):
+            cv2.line(img, tuple(pts[hip]), tuple(pts[knee]), col, 5, cv2.LINE_AA)
+            cv2.line(img, tuple(pts[knee]), tuple(pts[ank]), col, 5, cv2.LINE_AA)
+            for t in (29, 31) if ank == 27 else (30, 32):
+                cv2.line(img, tuple(pts[ank]), tuple(pts[t]), col, 3, cv2.LINE_AA)
+        for j in (0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28):
+            cv2.circle(img, tuple(pts[j]), 5, (40, 40, 40), -1, cv2.LINE_AA)
+        cv2.circle(img, (int(hip_px[0]), int(hip_px[1])), 7, (120, 60, 200), 2, cv2.LINE_AA)
+        # HUD
+        j = i if not stale else last_i
+        fkd, bkd = per_frame["front_knee"][j], per_frame["back_knee"][j]
+        cv2.putText(img, label, (16, 30), font, 0.7, (40, 40, 40), 2, cv2.LINE_AA)
+        cv2.putText(img, f"front knee {fkd:3.0f}", (16, H - 40), font, 0.6, (60, 60, 230), 2, cv2.LINE_AA)
+        cv2.putText(img, f"back knee  {bkd:3.0f}", (16, H - 16), font, 0.6, (200, 170, 0), 2, cv2.LINE_AA)
+        cv2.putText(img, "hips pinned, side view from 3D landmarks", (W - 330, H - 16), font, 0.45, (120, 120, 120), 1, cv2.LINE_AA)
+        vw.write(img)
+    vw.release()
+    import subprocess
+    tmp = out_path.with_suffix(".tmp.mp4"); out_path.rename(tmp)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(tmp), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23",
+                    "-movflags", "+faststart", str(out_path)], check=True)
+    tmp.unlink()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
@@ -340,6 +428,7 @@ def main():
     ap.add_argument("--source", default="")
     ap.add_argument("--note", default="")
     ap.add_argument("--no-autocrop", action="store_true")
+    ap.add_argument("--from-saved", action="store_true", help="re-render from <stem>_pose.npz instead of tracking again")
     args = ap.parse_args()
 
     video = Path(args.video)
@@ -348,11 +437,25 @@ def main():
     stem = video.stem
     label = args.label or stem
     print(f"Processing {video.name}")
-    fps, W, H, frames, px, world, vis = run_pose(video, args.model, args.start, args.end, not args.no_autocrop)
+    npz = out / f"{stem}_pose.npz"
+    if args.from_saved and npz.exists():
+        d = np.load(npz)
+        px, world, vis, fps = d["px"], d["world"], d["vis"], float(d["fps"])
+        cap = cv2.VideoCapture(str(video)); cap.set(cv2.CAP_PROP_POS_FRAMES, int(args.start * fps))
+        frames = []
+        while len(frames) < len(px):
+            ok, fr = cap.read()
+            if not ok: break
+            frames.append(fr)
+        cap.release(); W, H = frames[0].shape[1], frames[0].shape[0]
+    else:
+        fps, W, H, frames, px, world, vis = run_pose(video, args.model, args.start, args.end, not args.no_autocrop)
+        np.savez_compressed(npz, px=px, world=world, vis=vis, fps=fps)
     summary, series, per_frame, px_s = compute_metrics(fps, px, world, vis, args.front)
     summary.update(dict(label=label, group=args.group, source=args.source, note=args.note, clip=video.name,
                         fps=float(fps), width=W, height=H, start=args.start, end=args.end))
     render(frames, px_s, per_frame, fps, out / f"{stem}_stance.mp4", label, out / f"{stem}_contact.jpg")
+    render_skeleton(per_frame, fps, out / f"{stem}_skel.mp4", label)
     with open(out / f"{stem}_stance.json", "w") as f:
         json.dump(dict(summary=summary, series=series), f)
     print(json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in summary.items()}, indent=1))

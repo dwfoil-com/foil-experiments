@@ -99,6 +99,18 @@ front knee ahead of the front ankle, hip position between the feet, and pump fre
 The mast is rarely in frame, so feet relative to the mast are read manually off gridded
 frames and listed in the report as approximate fractions of board length.
 
+Each clip produces two videos: the tracked overlay, and a hips-pinned side view
+built from the 3D landmarks (`*_skel.mp4`), so a nose-cam clip and a drone clip
+end up in the same frame of reference. Raw landmarks are cached in `*_pose.npz`,
+so a render can be redone without tracking again (`--from-saved`).
+
+`export_reel.py` compiles the reviewed clips into one shareable video, overlay
+beside skeleton with a title strip, beginners first:
+
+```bash
+python export_reel.py --max-seconds 8      # stance/export/pump_stance_review.mp4
+```
+
 `stance/` is gitignored because the inputs are third-party clips pulled with yt-dlp.
 
 The same metrics run in the browser at `site/apps/pump-stance/index.html`
