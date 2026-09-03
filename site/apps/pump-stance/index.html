@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pump Stance Check</title>
+<style>
+:root{color-scheme:light dark;--surface:#fcfcfb;--surface-2:#f1f0ec;--text:#0b0b0b;--text-2:#52514e;--muted:#7a7873;--grid:#e3e1db;
+--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--front:#2a78d6;--back:#eb6834;--you:#4a3aa7}
+@media (prefers-color-scheme:dark){:root{--surface:#1a1a19;--surface-2:#242422;--text:#fff;--text-2:#c3c2b7;--muted:#8f8e87;--grid:#33332f;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--front:#3987e5;--back:#d95926;--you:#9085e9}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 80px}
+h1{font-size:24px;margin:0 0 4px} h2{font-size:18px;margin:28px 0 8px} h3{font-size:15px;margin:0 0 6px}
+p{margin:6px 0} .muted{color:var(--muted);font-size:13px} a{color:var(--s1)}
+.panel{background:var(--surface-2);border-radius:10px;padding:14px;margin:12px 0}
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end}
+.controls label{display:flex;flex-direction:column;font-size:12px;color:var(--text-2);gap:3px}
+input[type=range]{width:220px} select,input[type=number],input[type=file]{font:inherit;padding:4px 6px;border-radius:6px;border:1px solid var(--grid);background:var(--surface);color:var(--text)}
+button{font:inherit;font-weight:600;padding:8px 16px;border-radius:8px;border:0;background:var(--s1);color:#fff;cursor:pointer}
+button:disabled{opacity:.45;cursor:default} button.secondary{background:var(--surface);color:var(--text);border:1px solid var(--grid)}
+.stage{position:relative;background:#000;border-radius:8px;overflow:hidden}
+canvas#view{width:100%;display:block;max-height:70vh;object-fit:contain}
+video{display:none}
+.progress{height:6px;background:var(--grid);border-radius:3px;overflow:hidden;margin:8px 0} .progress i{display:block;height:100%;width:0;background:var(--s1);transition:width .1s}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.stat{background:var(--surface);border-radius:6px;padding:8px 10px} .stat b{font-size:22px;display:block;font-variant-numeric:tabular-nums} .stat span{font-size:12px;color:var(--text-2)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+figure{margin:0;background:var(--surface);border-radius:8px;padding:10px} figcaption{font-size:13px;margin-bottom:4px}
+svg{width:100%;height:auto;display:block}
+.grid{stroke:var(--grid);stroke-width:1} .zero{stroke:var(--text-2);stroke-width:1;stroke-dasharray:3 3}
+.tick,.rowlab,.axis{font-size:11px;fill:var(--text-2)} .rowlab{font-size:12px}
+path.front{fill:none;stroke:var(--front);stroke-width:2} path.back{fill:none;stroke:var(--back);stroke-width:2}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--text-2);margin-top:4px} .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.sw.front{background:var(--front)} .sw.back{background:var(--back)} .dotk{display:inline-block;width:10px;height:10px;border-radius:5px;vertical-align:middle;margin-right:5px}
+.tip{margin-left:auto;font-variant-numeric:tabular-nums}
+.status{font-size:13px;color:var(--text-2);min-height:20px}
+ul{padding-left:20px} li{margin:3px 0}
+@media (max-width:700px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Pump Stance Check</h1>
+<p class="muted">Drop in a short clip of someone pumping. Pose tracking runs in your browser on the GPU, nothing is uploaded. It measures whether the front leg is doing its share of the pump, how wide the stance is, and where the hips sit between the feet, then lines your numbers up against clips of pros and beginners from the <a href="https://forum.progressionproject.com/t/foil-trim-how-to-get-the-balance-right/5406" target="_blank" rel="noopener">Foil Trim thread</a>.</p>
+
+<div class="panel">
+  <div class="controls">
+    <label>Clip (side-on or nose-cam, rider fills a decent part of the frame)
+      <input type="file" id="file" accept="video/*"></label>
+    <button class="secondary" id="sample" type="button">Use sample clip</button>
+    <label>Start <span id="startLabel">0.0 s</span>
+      <input type="range" id="start" min="0" max="0" step="0.1" value="0" disabled></label>
+    <label>Window
+      <select id="win"><option value="5" selected>5 s</option><option value="8">8 s</option><option value="10">10 s</option></select></label>
+    <label>Front foot
+      <select id="front"><option value="auto" selected>auto</option><option value="left">left</option><option value="right">right</option></select></label>
+    <label>Compute
+      <select id="delegate"><option value="GPU" selected>GPU</option><option value="CPU">CPU</option></select></label>
+    <label>Zoom on rider
+      <select id="autocrop"><option value="1" selected>on</option><option value="0">off</option></select></label>
+    <button id="run" type="button" disabled>Analyse</button>
+  </div>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="status" id="status">Loading pose model&hellip;</div>
+</div>
+
+<div class="stage">
+  <canvas id="view" width="16" height="9"></canvas>
+  <video id="video" playsinline muted preload="auto"></video>
+</div>
+<div class="controls" style="margin-top:8px">
+  <label style="flex:1">Scrub <input type="range" id="scrub" min="0" max="0" step="1" value="0" disabled style="width:100%"></label>
+  <button class="secondary" id="play" type="button" disabled>Play overlay</button>
+  <button class="secondary" id="dl" type="button" disabled>Download JSON</button>
+</div>
+
+<div id="results" hidden>
+  <h2>Your clip</h2>
+  <div class="stats" id="stats"></div>
+  <p class="muted" id="frontNote"></p>
+
+  <h2>Knee angles over the window</h2>
+  <div class="panel" id="lineWrap"></div>
+
+  <h2>Against the reference clips</h2>
+  <p class="muted">Each dot is one clip. Beginners are orange, pros blue, your clip violet. Hover a dot for the clip name. The reference clips are the ones flagged in the forum thread as good and bad examples, tracked with the same method.</p>
+  <div class="grid2" id="dots"></div>
+
+  <h2>How to read it</h2>
+  <ul>
+    <li><b>Knee asymmetry at bottom of pump</b>: front knee angle minus back knee angle in the frames where the back knee is most bent. A big positive number is the forum picture. The back leg squats and the front leg stays straight.</li>
+    <li><b>Front knee deepest bend</b>: the 10th percentile front knee angle. If it stays above about 150 degrees the front leg never really loads.</li>
+    <li><b>Leg drive ratio</b>: back knee range of motion divided by front knee range of motion. Near 1.0 means both legs pump. Well above 1.0 means the back leg pumps and the front leg is a strut.</li>
+    <li><b>Stance width</b>: ankle to ankle as a fraction of leg length. Forum guidance is shoulder width or narrower.</li>
+    <li><b>Hip position</b>: 0 is over the back ankle, 1 is over the front ankle. It is the best available proxy for the weight split between the feet.</li>
+    <li>The mast is rarely in shot, so foot position relative to the mast is not measured. In every side-on reference clip the back foot sits roughly over the mast and the front foot 20 to 30 percent of board length ahead, in both groups. The difference between pros and beginners shows in the knees and hips.</li>
+  </ul>
+</div>
+</main>
+
+<script type="module">
+import { FilesetResolver, PoseLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
+
+const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task";
+const SAMPLE = "https://raw.githubusercontent.com/dwfoil-com/foil-experiments/main/foil-mocap/samples/input/slowmo_pump.webm";
+
+// REFERENCE:BEGIN (regenerated by foil-mocap/build_stance_report.py --web)
+const REFERENCE = [{"label": "Beginner A (nose-cam)", "group": "beginner", "tracked_pct": 99.159, "asym_at_bottom_deg": 19.7, "front_knee_p10": 137.5, "back_knee_p10": 121.2, "leg_drive_ratio": 1.833, "stance_width_over_leg": 0.448, "hip_fraction": 0.671, "front_knee_over_ankle_m": 0.008, "knee_asymmetry_deg": -0.656, "front_knee_deg": 155.385, "back_knee_deg": 158.212}, {"label": "Beginner B (race fatigue)", "group": "beginner", "tracked_pct": 85.139, "asym_at_bottom_deg": 6.9, "front_knee_p10": 150.0, "back_knee_p10": 145.5, "leg_drive_ratio": 0.959, "stance_width_over_leg": 0.551, "hip_fraction": 0.414, "front_knee_over_ankle_m": -0.034, "knee_asymmetry_deg": 4.864, "front_knee_deg": 159.24, "back_knee_deg": 155.236}, {"label": "Beginner C (Foil Surfing Club)", "group": "beginner", "tracked_pct": 45.0, "asym_at_bottom_deg": 17.0, "front_knee_p10": 123.7, "back_knee_p10": 117.2, "leg_drive_ratio": 0.988, "stance_width_over_leg": 0.421, "hip_fraction": 0.384, "front_knee_over_ankle_m": -0.034, "knee_asymmetry_deg": 9.034, "front_knee_deg": 151.302, "back_knee_deg": 143.871}, {"label": "Acceleration pumps (post 20)", "group": "pro", "tracked_pct": 27.111, "asym_at_bottom_deg": 31.6, "front_knee_p10": 57.6, "back_knee_p10": 53.4, "leg_drive_ratio": 1.029, "stance_width_over_leg": 0.378, "hip_fraction": 0.557, "front_knee_over_ankle_m": 0.0, "knee_asymmetry_deg": -0.259, "front_knee_deg": 131.166, "back_knee_deg": 126.89}, {"label": "Brady Hurley (post 26)", "group": "pro", "tracked_pct": 99.048, "asym_at_bottom_deg": 0.0, "front_knee_p10": 107.5, "back_knee_p10": 113.2, "leg_drive_ratio": 0.765, "stance_width_over_leg": 0.38, "hip_fraction": 0.532, "front_knee_over_ankle_m": -0.007, "knee_asymmetry_deg": 6.032, "front_knee_deg": 143.678, "back_knee_deg": 142.242}, {"label": "Earlier mocap sample (slow-mo pump)", "group": "pro", "tracked_pct": 91.0, "asym_at_bottom_deg": -4.1, "front_knee_p10": 125.0, "back_knee_p10": 130.9, "leg_drive_ratio": 0.88, "stance_width_over_leg": 0.447, "hip_fraction": 0.494, "front_knee_over_ankle_m": -0.034, "knee_asymmetry_deg": -2.395, "front_knee_deg": 151.623, "back_knee_deg": 155.094}, {"label": "Kane (fully trimmed)", "group": "pro", "tracked_pct": 97.245, "asym_at_bottom_deg": 14.3, "front_knee_p10": 138.3, "back_knee_p10": 127.1, "leg_drive_ratio": 1.368, "stance_width_over_leg": 0.348, "hip_fraction": 0.377, "front_knee_over_ankle_m": -0.046, "knee_asymmetry_deg": 3.455, "front_knee_deg": 165.323, "back_knee_deg": 161.239}, {"label": "McFlow (drone)", "group": "pro", "tracked_pct": 34.946, "asym_at_bottom_deg": 32.1, "front_knee_p10": 88.8, "back_knee_p10": 80.2, "leg_drive_ratio": 1.087, "stance_width_over_leg": 0.404, "hip_fraction": 0.465, "front_knee_over_ankle_m": -0.039, "knee_asymmetry_deg": 4.379, "front_knee_deg": 135.058, "back_knee_deg": 131.494}, {"label": "Mike Pedigo (dock pump)", "group": "pro", "tracked_pct": 98.584, "asym_at_bottom_deg": -6.1, "front_knee_p10": 130.6, "back_knee_p10": 140.0, "leg_drive_ratio": 0.598, "stance_width_over_leg": 0.457, "hip_fraction": 0.564, "front_knee_over_ankle_m": -0.014, "knee_asymmetry_deg": 0.894, "front_knee_deg": 157.65, "back_knee_deg": 157.686}, {"label": "Oscar (post 10)", "group": "pro", "tracked_pct": 91.212, "asym_at_bottom_deg": 8.5, "front_knee_p10": 119.0, "back_knee_p10": 113.7, "leg_drive_ratio": 1.203, "stance_width_over_leg": 0.599, "hip_fraction": 0.481, "front_knee_over_ankle_m": -0.035, "knee_asymmetry_deg": -2.41, "front_knee_deg": 154.327, "back_knee_deg": 153.291}, {"label": "Paddle-up feet shift", "group": "pro", "tracked_pct": 50.0, "asym_at_bottom_deg": 11.3, "front_knee_p10": 101.0, "back_knee_p10": 105.9, "leg_drive_ratio": 0.926, "stance_width_over_leg": 0.375, "hip_fraction": 0.483, "front_knee_over_ankle_m": -0.006, "knee_asymmetry_deg": -0.64, "front_knee_deg": 146.721, "back_knee_deg": 150.893}, {"label": "Perfectly balanced surfer", "group": "pro", "tracked_pct": 45.145, "asym_at_bottom_deg": 11.7, "front_knee_p10": 103.6, "back_knee_p10": 103.4, "leg_drive_ratio": 1.062, "stance_width_over_leg": 0.354, "hip_fraction": 0.399, "front_knee_over_ankle_m": -0.018, "knee_asymmetry_deg": -3.728, "front_knee_deg": 151.032, "back_knee_deg": 149.208}, {"label": "Pros stacked (1:10 to 1:20)", "group": "pro", "tracked_pct": 85.309, "asym_at_bottom_deg": 8.2, "front_knee_p10": 134.1, "back_knee_p10": 129.9, "leg_drive_ratio": 0.944, "stance_width_over_leg": 0.423, "hip_fraction": 0.333, "front_knee_over_ankle_m": -0.075, "knee_asymmetry_deg": 5.025, "front_knee_deg": 162.433, "back_knee_deg": 157.918}, {"label": "Ryan Arzy (how to pump)", "group": "pro", "tracked_pct": 100.0, "asym_at_bottom_deg": 5.0, "front_knee_p10": 138.4, "back_knee_p10": 136.5, "leg_drive_ratio": 1.033, "stance_width_over_leg": 0.475, "hip_fraction": 0.396, "front_knee_over_ankle_m": -0.045, "knee_asymmetry_deg": -0.013, "front_knee_deg": 163.313, "back_knee_deg": 163.689}, {"label": "Slappy (endurance pump)", "group": "pro", "tracked_pct": 82.889, "asym_at_bottom_deg": 6.0, "front_knee_p10": 148.4, "back_knee_p10": 147.2, "leg_drive_ratio": 1.184, "stance_width_over_leg": 0.349, "hip_fraction": 0.363, "front_knee_over_ankle_m": -0.036, "knee_asymmetry_deg": -2.294, "front_knee_deg": 160.406, "back_knee_deg": 162.38}, {"label": "Wave pumping (post 1, 0:25)", "group": "pro", "tracked_pct": 45.406, "asym_at_bottom_deg": 3.7, "front_knee_p10": 89.7, "back_knee_p10": 92.1, "leg_drive_ratio": 1.024, "stance_width_over_leg": 0.408, "hip_fraction": 0.695, "front_knee_over_ankle_m": 0.01, "knee_asymmetry_deg": -7.33, "front_knee_deg": 140.564, "back_knee_deg": 147.864}];
+// REFERENCE:END
+
+const L = { nose: 0, l_sh: 11, r_sh: 12, l_hip: 23, r_hip: 24, l_knee: 25, r_knee: 26, l_ank: 27, r_ank: 28 };
+const SKELETON = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[27,31],[28,30],[28,32],[29,31],[30,32]];
+const METRICS = [
+  ["asym_at_bottom_deg", "Knee asymmetry at bottom of pump", "deg", [-10, 10]],
+  ["front_knee_p10", "Front knee, deepest bend", "deg", [90, 160]],
+  ["leg_drive_ratio", "Leg drive ratio", "x", [0.5, 2.0]],
+  ["stance_width_over_leg", "Stance width", "leg lengths", [0.3, 0.6]],
+  ["hip_fraction", "Hip position", "0 = back, 1 = front", [0.3, 0.7]],
+  ["front_knee_over_ankle_m", "Front knee ahead of ankle", "m", [-0.05, 0.05]],
+];
+
+const $ = id => document.getElementById(id);
+const video = $("video"), view = $("view"), ctx = view.getContext("2d");
+const status = t => { $("status").textContent = t; };
+let landmarker = null, delegateLoaded = null, fileURL = null;
+let frames = [];   // {t, px:[[x,y]...], world:[[x,y,z]...]} or {t, px:null}
+let per = null, summary = null, series = null;
+
+async function loadModel() {
+  const delegate = $("delegate").value;
+  if (landmarker && delegateLoaded === delegate) return;
+  status(`Loading pose model (${delegate})…`);
+  const fileset = await FilesetResolver.forVisionTasks(WASM);
+  if (landmarker) landmarker.close();
+  try {
+    landmarker = await PoseLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL, delegate },
+      runningMode: "VIDEO", numPoses: 1,
+      minPoseDetectionConfidence: 0.4, minPosePresenceConfidence: 0.4, minTrackingConfidence: 0.4,
+    });
+  } catch (e) {
+    if (delegate === "GPU") { $("delegate").value = "CPU"; return loadModel(); }
+    throw e;
+  }
+  delegateLoaded = delegate;
+  status("Model ready. Pick a clip.");
+}
+
+function setVideo(url) {
+  if (fileURL && fileURL !== url) { URL.revokeObjectURL(fileURL); fileURL = null; }
+  video.crossOrigin = "anonymous";
+  status("Loading clip…");
+  video.onerror = () => status("Could not load that clip. Try an mp4 (H.264) or webm.");
+  video.src = url;
+  video.onloadedmetadata = () => {
+    const d = video.duration;
+    const s = $("start"); s.max = Math.max(0, d - 1).toFixed(1); s.value = 0; s.disabled = false;
+    $("startLabel").textContent = "0.0 s";
+    view.width = video.videoWidth; view.height = video.videoHeight;
+    video.currentTime = 0;
+    $("run").disabled = !landmarker;
+    status(`Clip loaded: ${d.toFixed(1)} s, ${video.videoWidth}x${video.videoHeight}.`);
+  };
+  video.onseeked = () => { if (!running) drawFrame(null); };
+}
+
+$("file").onchange = e => { const f = e.target.files[0]; if (!f) return; const u = URL.createObjectURL(f); setVideo(u); fileURL = u; };
+$("sample").onclick = () => setVideo(SAMPLE);
+$("start").oninput = e => { $("startLabel").textContent = `${(+e.target.value).toFixed(1)} s`; video.currentTime = +e.target.value; };
+$("delegate").onchange = () => loadModel().catch(err => status("Model failed: " + err.message));
+
+const seek = t => new Promise(res => { const h = () => { video.removeEventListener("seeked", h); res(); }; video.addEventListener("seeked", h); video.currentTime = t; });
+
+// Crop tracker: keeps a square window around the rider and upscales it so small figures get enough pixels.
+const cropCanvas = document.createElement("canvas"); const cctx = cropCanvas.getContext("2d");
+let box = null;
+function cropWindow() {
+  if (!box) return null;
+  const half = box.size * 1.8 / 2;
+  const x0 = Math.max(0, box.cx - half), y0 = Math.max(0, box.cy - half);
+  const x1 = Math.min(video.videoWidth, box.cx + half), y1 = Math.min(video.videoHeight, box.cy + half);
+  if (x1 - x0 < 64 || y1 - y0 < 64) return null;
+  return [x0, y0, x1, y1];
+}
+function updateBox(px) {
+  let xa = 1e9, xb = -1e9, ya = 1e9, yb = -1e9;
+  for (const [x, y] of px) { xa = Math.min(xa, x); xb = Math.max(xb, x); ya = Math.min(ya, y); yb = Math.max(yb, y); }
+  const nb = { cx: (xa + xb) / 2, cy: (ya + yb) / 2, size: Math.max(xb - xa, yb - ya) };
+  box = box ? { cx: box.cx + 0.3 * (nb.cx - box.cx), cy: box.cy + 0.3 * (nb.cy - box.cy), size: box.size + 0.3 * (nb.size - box.size) } : nb;
+}
+
+let running = false;
+$("run").onclick = async () => {
+  if (running) return;
+  running = true; $("run").disabled = true; $("results").hidden = true; $("scrub").disabled = true; $("play").disabled = true; $("dl").disabled = true;
+  try {
+    await loadModel();
+    const t0 = +$("start").value, win = +$("win").value;
+    const t1 = Math.min(video.duration, t0 + win);
+    const fps = 30, dt = 1 / fps, n = Math.floor((t1 - t0) * fps);
+    const autocrop = $("autocrop").value === "1";
+    frames = []; box = null;
+    const W = video.videoWidth, H = video.videoHeight;
+    for (let i = 0; i < n; i++) {
+      const t = t0 + i * dt;
+      await seek(t);
+      let src = video, x0 = 0, y0 = 0, scale = 1;
+      const cw = autocrop ? cropWindow() : null;
+      if (cw) {
+        [x0, y0] = cw; const w = cw[2] - cw[0], h = cw[3] - cw[1];
+        scale = Math.max(1, 720 / h);
+        cropCanvas.width = Math.round(w * scale); cropCanvas.height = Math.round(h * scale);
+        cctx.drawImage(video, x0, y0, w, h, 0, 0, cropCanvas.width, cropCanvas.height);
+        src = cropCanvas;
+      }
+      const res = landmarker.detectForVideo(src, Math.round(i * dt * 1000) + 1);
+      if (res.landmarks && res.landmarks.length) {
+        const sw = src === video ? W : cropCanvas.width, sh = src === video ? H : cropCanvas.height;
+        const px = res.landmarks[0].map(q => [q.x * sw / scale + x0, q.y * sh / scale + y0]);
+        const world = res.worldLandmarks[0].map(q => [q.x, q.y, q.z]);
+        frames.push({ t, px, world }); updateBox(px);
+      } else { frames.push({ t, px: null, world: null }); box = null; }
+      drawFrame(frames[i]);
+      $("bar").style.width = `${100 * (i + 1) / n}%`;
+      status(`Tracking ${i + 1}/${n} frames…`);
+    }
+    const out = computeMetrics(frames, fps, $("front").value);
+    per = out.per; summary = out.summary; series = out.series;
+    showResults();
+    $("scrub").max = frames.length - 1; $("scrub").value = 0; $("scrub").disabled = false; $("play").disabled = false; $("dl").disabled = false;
+    status(`Done. ${summary.frames_tracked} of ${frames.length} frames tracked.`);
+  } catch (err) {
+    console.error(err); status("Failed: " + err.message);
+  } finally { running = false; $("run").disabled = false; }
+};
+
+$("scrub").oninput = async e => { const i = +e.target.value; await seek(frames[i].t); drawFrame(frames[i], i); };
+let playing = false;
+$("play").onclick = async () => {
+  if (playing) { playing = false; return; }
+  playing = true; $("play").textContent = "Stop";
+  for (let i = 0; i < frames.length && playing; i++) { $("scrub").value = i; await seek(frames[i].t); drawFrame(frames[i], i); await new Promise(r => setTimeout(r, 33)); }
+  playing = false; $("play").textContent = "Play overlay";
+};
+$("dl").onclick = () => {
+  const blob = new Blob([JSON.stringify({ summary, series }, null, 1)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "pump_stance.json"; a.click();
+};
+
+function drawFrame(f, i) {
+  ctx.drawImage(video, 0, 0, view.width, view.height);
+  if (!f || !f.px) return;
+  const p = f.px, lf = per ? per.left_front : true;
+  ctx.lineWidth = Math.max(2, view.width / 400); ctx.strokeStyle = "#00ff00";
+  for (const [a, b] of SKELETON) { ctx.beginPath(); ctx.moveTo(p[a][0], p[a][1]); ctx.lineTo(p[b][0], p[b][1]); ctx.stroke(); }
+  const legs = lf ? [[23, 25, 27, "#ff3b30"], [24, 26, 28, "#00e5ff"]] : [[24, 26, 28, "#ff3b30"], [23, 25, 27, "#00e5ff"]];
+  ctx.lineWidth = Math.max(4, view.width / 200);
+  for (const [h, k, a, col] of legs) { ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(p[h][0], p[h][1]); ctx.lineTo(p[k][0], p[k][1]); ctx.lineTo(p[a][0], p[a][1]); ctx.stroke(); }
+  ctx.fillStyle = "#fff";
+  for (const [x, y] of p) { ctx.beginPath(); ctx.arc(x, y, Math.max(2, view.width / 300), 0, 7); ctx.fill(); }
+  if (per && i != null) {
+    const fs = Math.max(14, view.width / 45);
+    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, 0, view.width, fs * 3.2);
+    ctx.fillStyle = "#fff"; ctx.font = `${fs}px sans-serif`;
+    const fk = per.front_knee[i], bk = per.back_knee[i], sw = per.stance_w[i], hf = per.hip_frac[i];
+    ctx.fillText(isFinite(fk) ? `front knee ${fk.toFixed(0)}   back knee ${bk.toFixed(0)}` : "no pose", 10, fs * 1.2);
+    if (isFinite(sw)) ctx.fillText(`stance ${(sw * 100).toFixed(0)} cm   hips ${hf.toFixed(2)} (0 = back, 1 = front)`, 10, fs * 2.5);
+  }
+}
+
+// ---------- metrics (port of foil-mocap/stance_analysis.py) ----------
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const norm = v => Math.hypot(v[0], v[1], v[2]);
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const horiz = v => [v[0], 0, v[2]];
+const angle = (a, b, c) => { const v1 = sub(a, b), v2 = sub(c, b); return Math.acos(Math.max(-1, Math.min(1, dot(v1, v2) / (norm(v1) * norm(v2) + 1e-9)))) * 180 / Math.PI; };
+function smoothSeries(arr, win) {
+  const n = arr.length, out = new Array(n).fill(NaN), half = Math.floor(win / 2);
+  for (let i = 0; i < n; i++) {
+    if (!isFinite(arr[i])) continue;
+    let s = 0, c = 0;
+    for (let j = Math.max(0, i - half); j <= Math.min(n - 1, i + half); j++) if (isFinite(arr[j])) { s += arr[j]; c++; }
+    out[i] = s / c;
+  }
+  return out;
+}
+const pct = (arr, q) => { const a = arr.filter(isFinite).sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(q * a.length))] : NaN; };
+const med = arr => pct(arr, 0.5);
+
+function computeMetrics(frames, fps, frontOverride) {
+  const n = frames.length, win = Math.max(3, Math.round(fps * 0.15) | 1);
+  // smooth world landmarks and pixel landmarks per coordinate
+  const world = [], px = [];
+  const wcoords = Array.from({ length: 33 }, () => [[], [], []]);
+  const pcoords = Array.from({ length: 33 }, () => [[], []]);
+  for (const f of frames) for (let j = 0; j < 33; j++) {
+    for (let k = 0; k < 3; k++) wcoords[j][k].push(f.world ? f.world[j][k] : NaN);
+    for (let k = 0; k < 2; k++) pcoords[j][k].push(f.px ? f.px[j][k] : NaN);
+  }
+  const ws = wcoords.map(c => c.map(a => smoothSeries(a, win))), ps = pcoords.map(c => c.map(a => smoothSeries(a, win)));
+  for (let i = 0; i < n; i++) { world.push(Array.from({ length: 33 }, (_, j) => [ws[j][0][i], ws[j][1][i], ws[j][2][i]])); px.push(Array.from({ length: 33 }, (_, j) => [ps[j][0][i], ps[j][1][i]])); }
+
+  const get = (i, k) => world[i][L[k]];
+  const headLead = [];
+  for (let i = 0; i < n; i++) {
+    if (!frames[i].world) continue;
+    const la = get(i, "l_ank"), ra = get(i, "r_ank"), hip = mid(get(i, "l_hip"), get(i, "r_hip"));
+    const ax = horiz(sub(la, ra)); const al = norm(ax) + 1e-9;
+    headLead.push(dot(horiz(sub(get(i, "nose"), hip)), ax) / al);
+  }
+  const leftFront = frontOverride === "left" ? true : frontOverride === "right" ? false : med(headLead) > 0;
+
+  const front_knee = [], back_knee = [], stance_w = [], hip_frac = [], knee_over = [], leg_len = [], sh_w = [], hip_y_rel = [];
+  const F = leftFront ? ["l_hip", "l_knee", "l_ank"] : ["r_hip", "r_knee", "r_ank"], B = leftFront ? ["r_hip", "r_knee", "r_ank"] : ["l_hip", "l_knee", "l_ank"];
+  const legpx = [];
+  for (let i = 0; i < n; i++) {
+    if (!frames[i].world) { front_knee.push(NaN); back_knee.push(NaN); stance_w.push(NaN); hip_frac.push(NaN); knee_over.push(NaN); leg_len.push(NaN); sh_w.push(NaN); hip_y_rel.push(NaN); legpx.push(NaN); continue; }
+    const fh = get(i, F[0]), fk = get(i, F[1]), fa = get(i, F[2]), bh = get(i, B[0]), bk = get(i, B[1]), ba = get(i, B[2]);
+    const hip = mid(fh, bh);
+    const fwd = horiz(sub(fa, ba)); const sw = norm(fwd) + 1e-9; const fu = fwd.map(v => v / sw);
+    front_knee.push(angle(fh, fk, fa)); back_knee.push(angle(bh, bk, ba));
+    stance_w.push(sw); knee_over.push(dot(horiz(sub(fk, fa)), fu)); hip_frac.push(dot(horiz(sub(hip, ba)), fu) / sw);
+    leg_len.push((norm(sub(fk, fh)) + norm(sub(fa, fk)) + norm(sub(bk, bh)) + norm(sub(ba, bk))) / 2);
+    sh_w.push(norm(sub(get(i, "l_sh"), get(i, "r_sh"))));
+    const p = px[i];
+    hip_y_rel.push((p[23][1] + p[24][1]) / 2);
+    legpx.push((Math.hypot(p[23][0] - p[27][0], p[23][1] - p[27][1]) + Math.hypot(p[24][0] - p[28][0], p[24][1] - p[28][1])) / 2);
+  }
+  const hy0 = med(hip_y_rel), lp = med(legpx);
+  const hy = hip_y_rel.map(v => isFinite(v) ? -(v - hy0) / lp : 0);
+  // peaks: local maxima with min distance 0.35 s and prominence 0.03
+  const minDist = Math.round(fps * 0.35), peaks = [];
+  for (let i = 1; i < n - 1; i++) {
+    if (hy[i] > hy[i - 1] && hy[i] >= hy[i + 1]) {
+      let lo = hy[i]; for (let j = i; j >= Math.max(0, i - minDist * 2); j--) lo = Math.min(lo, hy[j]);
+      let ro = hy[i]; for (let j = i; j <= Math.min(n - 1, i + minDist * 2); j++) ro = Math.min(ro, hy[j]);
+      if (hy[i] - Math.max(lo, ro) >= 0.03 && (!peaks.length || i - peaks[peaks.length - 1] >= minDist)) peaks.push(i);
+    }
+  }
+  const freq = peaks.length > 2 ? (peaks.length - 1) / ((peaks[peaks.length - 1] - peaks[0]) / fps) : 0;
+  const rom = a => pct(a, 0.9) - pct(a, 0.1);
+  const fr = rom(front_knee), br = rom(back_knee);
+  const bcut = pct(back_knee, 0.2);
+  const bottom = []; for (let i = 0; i < n; i++) if (isFinite(back_knee[i]) && back_knee[i] <= bcut) bottom.push(front_knee[i] - back_knee[i]);
+  const summary = {
+    frames_tracked: frames.filter(f => f.world).length, frames_total: n, front_foot: leftFront ? "left" : "right",
+    stance_width_m: med(stance_w), stance_width_over_leg: med(stance_w.map((v, i) => v / leg_len[i])), stance_width_over_shoulder: med(stance_w.map((v, i) => v / sh_w[i])),
+    front_knee_deg: med(front_knee), back_knee_deg: med(back_knee), knee_asymmetry_deg: med(front_knee.map((v, i) => v - back_knee[i])),
+    front_knee_rom_deg: fr, back_knee_rom_deg: br, leg_drive_ratio: fr > 1 ? br / fr : NaN,
+    front_knee_over_ankle_m: med(knee_over), hip_fraction: med(hip_frac),
+    pump_freq_hz: freq, pump_cycles: peaks.length,
+    asym_at_bottom_deg: med(bottom), front_knee_p10: pct(front_knee, 0.1), back_knee_p10: pct(back_knee, 0.1),
+  };
+  const series = { t: frames.map(f => +f.t.toFixed(3)), front_knee: front_knee.map(r1), back_knee: back_knee.map(r1), stance_width: stance_w.map(r3), hip_fraction: hip_frac.map(r3) };
+  return { summary, series, per: { front_knee, back_knee, stance_w, hip_frac, left_front: leftFront } };
+}
+const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+const r1 = v => isFinite(v) ? +v.toFixed(1) : null, r3 = v => isFinite(v) ? +v.toFixed(3) : null;
+const fmt = (v, d = 0) => isFinite(v) ? v.toFixed(d) : "n/a";
+
+// ---------- rendering results ----------
+function showResults() {
+  const s = summary;
+  $("stats").innerHTML = [
+    [`${fmt(s.asym_at_bottom_deg)}°`, "knee asymmetry at bottom of pump (front minus back)"],
+    [`${fmt(s.front_knee_p10)}° / ${fmt(s.back_knee_p10)}°`, "deepest front / back knee bend"],
+    [`${fmt(s.leg_drive_ratio, 2)}x`, "leg drive ratio (back ROM / front ROM)"],
+    [`${fmt(s.stance_width_m * 100)} cm`, `stance width (${fmt(s.stance_width_over_leg, 2)} leg lengths, ${fmt(s.stance_width_over_shoulder, 2)} shoulder widths)`],
+    [`${fmt(s.hip_fraction, 2)}`, "hips between back ankle (0) and front ankle (1)"],
+    [`${fmt(s.front_knee_over_ankle_m * 100)} cm`, "front knee ahead of front ankle"],
+    [`${fmt(s.front_knee_deg)}° / ${fmt(s.back_knee_deg)}°`, "median front / back knee angle"],
+    [`${fmt(s.pump_freq_hz, 2)} Hz`, `pump frequency (${s.pump_cycles} cycles)`],
+  ].map(([b, t]) => `<div class="stat"><b>${b}</b><span>${t}</span></div>`).join("");
+  $("frontNote").textContent = `Front foot detected as ${s.front_foot} (red leg in the overlay). If that is wrong, set it in the controls and run again. ${s.frames_tracked} of ${s.frames_total} frames tracked.`;
+  $("lineWrap").innerHTML = lineChart(series);
+  wireHover($("lineWrap").querySelector("svg"));
+  $("dots").innerHTML = METRICS.map(([k, title, unit, range]) => `<figure><figcaption><b>${title}</b> <span class="muted">${unit}</span></figcaption>${dotPlot(k, unit, range)}</figure>`).join("");
+  $("results").hidden = false;
+}
+
+function dotPlot(key, unit, range) {
+  const vals = REFERENCE.filter(r => isFinite(r[key]) && r.tracked_pct > 40).map(r => [r.group, r.label, r[key]]);
+  if (isFinite(summary[key])) vals.push(["you", "your clip", summary[key]]);
+  let lo = Math.min(range[0], ...vals.map(v => v[2])), hi = Math.max(range[1], ...vals.map(v => v[2]));
+  const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad;
+  const W = 640, H = 150, left = 90, right = 20, rows = ["beginner", "pro", "you"], col = { beginner: "var(--s2)", pro: "var(--s1)", you: "var(--you)" };
+  const ry = g => 32 + rows.indexOf(g) * 34, sx = v => left + (v - lo) / (hi - lo) * (W - left - right);
+  const span = hi - lo, tf = v => span >= 20 ? v.toFixed(0) : span >= 2 ? v.toFixed(1) : v.toFixed(2);
+  let out = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for (let i = 0; i <= 5; i++) { const v = lo + span * i / 5; out += `<line x1="${sx(v)}" y1="18" x2="${sx(v)}" y2="${H - 30}" class="grid"/><text x="${sx(v)}" y="${H - 12}" class="tick" text-anchor="middle">${tf(v)}</text>`; }
+  if (key === "leg_drive_ratio") out += `<line x1="${sx(1)}" y1="18" x2="${sx(1)}" y2="${H - 30}" class="zero"/>`;
+  if ((key === "asym_at_bottom_deg" || key === "front_knee_over_ankle_m") && lo < 0 && hi > 0) out += `<line x1="${sx(0)}" y1="18" x2="${sx(0)}" y2="${H - 30}" class="zero"/>`;
+  for (const g of rows) out += `<text x="${left - 8}" y="${ry(g) + 4}" class="rowlab" text-anchor="end">${g}</text>`;
+  for (const [g, label, v] of vals) out += `<circle cx="${sx(v)}" cy="${ry(g)}" r="${g === "you" ? 9 : 7}" fill="${col[g]}" stroke="var(--surface)" stroke-width="2"><title>${label}: ${v.toFixed(2)} ${unit}</title></circle>`;
+  return out + "</svg>";
+}
+
+function lineChart(series) {
+  const pts = series.t.map((t, i) => [t, series.front_knee[i], series.back_knee[i]]).filter(p => p[1] != null && p[2] != null);
+  if (pts.length < 5) return "<p class='muted'>Not enough tracked frames.</p>";
+  const W = 640, H = 200, left = 44, right = 12, top = 14, bot = 26, t0 = pts[0][0], t1 = pts[pts.length - 1][0], ylo = 60, yhi = 185;
+  const sx = v => left + (v - t0) / Math.max(1e-6, t1 - t0) * (W - left - right), sy = v => top + (yhi - Math.min(Math.max(v, ylo), yhi)) / (yhi - ylo) * (H - top - bot);
+  const path = k => { let d = "", pen = false, pt = null; for (const p of pts) { if (pt != null && p[0] - pt > 0.5) pen = false; d += (pen ? "L" : "M") + sx(p[0]).toFixed(1) + "," + sy(p[k]).toFixed(1) + " "; pen = true; pt = p[0]; } return d; };
+  let out = `<svg viewBox="0 0 ${W} ${H}" data-t="${pts.map(p => p[0].toFixed(2))}" data-f="${pts.map(p => p[1].toFixed(0))}" data-b="${pts.map(p => p[2].toFixed(0))}">`;
+  for (const yv of [90, 120, 150, 180]) out += `<line x1="${left}" y1="${sy(yv)}" x2="${W - right}" y2="${sy(yv)}" class="grid"/><text x="${left - 6}" y="${sy(yv) + 4}" class="tick" text-anchor="end">${yv}</text>`;
+  for (let i = 0; i < 5; i++) { const tv = t0 + (t1 - t0) * i / 4; out += `<text x="${sx(tv)}" y="${H - 8}" class="tick" text-anchor="middle">${tv.toFixed(1)}s</text>`; }
+  out += `<path d="${path(1)}" class="front"/><path d="${path(2)}" class="back"/>`;
+  out += `<line class="cross" x1="0" y1="${top}" x2="0" y2="${H - bot}" stroke="var(--text-2)" style="display:none"/><circle class="mf" r="5" fill="var(--front)" style="display:none"/><circle class="mb" r="5" fill="var(--back)" style="display:none"/>`;
+  out += `<rect class="hit" x="${left}" y="${top}" width="${W - left - right}" height="${H - top - bot}" fill="transparent"/></svg>`;
+  out += `<div class="legend"><span><i class="sw front"></i>front knee</span><span><i class="sw back"></i>back knee</span><span class="tip"></span></div>`;
+  return out;
+}
+function wireHover(svg) {
+  if (!svg) return;
+  const t = svg.dataset.t.split(",").map(Number), f = svg.dataset.f.split(",").map(Number), b = svg.dataset.b.split(",").map(Number);
+  const hit = svg.querySelector(".hit"), cross = svg.querySelector(".cross"), mf = svg.querySelector(".mf"), mb = svg.querySelector(".mb"), tip = svg.parentElement.querySelector(".tip");
+  const left = 44, right = 12, top = 14, bot = 26, W = 640, H = 200, ylo = 60, yhi = 185, t0 = t[0], t1 = t[t.length - 1];
+  const sx = v => left + (v - t0) / Math.max(1e-6, t1 - t0) * (W - left - right), sy = v => top + (yhi - Math.min(Math.max(v, ylo), yhi)) / (yhi - ylo) * (H - top - bot);
+  hit.addEventListener("mousemove", e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const tv = t0 + (p.x - left) / (W - left - right) * (t1 - t0); let i = 0; for (let k = 0; k < t.length; k++) if (Math.abs(t[k] - tv) < Math.abs(t[i] - tv)) i = k;
+    cross.style.display = ""; cross.setAttribute("x1", sx(t[i])); cross.setAttribute("x2", sx(t[i]));
+    mf.style.display = ""; mf.setAttribute("cx", sx(t[i])); mf.setAttribute("cy", sy(f[i]));
+    mb.style.display = ""; mb.setAttribute("cx", sx(t[i])); mb.setAttribute("cy", sy(b[i]));
+    tip.textContent = `${t[i].toFixed(1)}s  front ${f[i]}°  back ${b[i]}°  diff ${f[i] - b[i]}°`;
+    // also scrub the overlay to that frame
+    const idx = frames.findIndex(fr => fr.t >= t[i]); if (idx >= 0) { $("scrub").value = idx; seek(frames[idx].t).then(() => drawFrame(frames[idx], idx)); }
+  });
+  hit.addEventListener("mouseleave", () => { cross.style.display = "none"; mf.style.display = "none"; mb.style.display = "none"; tip.textContent = ""; });
+}
+
+// ?clip=<url> preloads a clip (same-origin or CORS-enabled); ?autorun=1 starts the analysis once the model and clip are ready.
+const params = new URLSearchParams(location.search);
+loadModel().then(() => {
+  if (params.get("clip")) {
+    setVideo(params.get("clip"));
+    if (params.get("autorun")) video.addEventListener("loadedmetadata", () => setTimeout(() => $("run").click(), 300), { once: true });
+  }
+}).catch(err => status("Model failed to load: " + err.message));
+</script>
+</body>
+</html>
