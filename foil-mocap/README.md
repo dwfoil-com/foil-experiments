@@ -77,3 +77,46 @@ The features JSON includes:
 3. Joint angles and body segments are computed from landmark positions
 4. Visualizations are rendered frame-by-frame with trajectory traces
 5. Biomechanical features are extracted from the time series
+
+## Stance analysis: pro versus beginner pumping
+
+`stance_analysis.py` extracts stance metrics from a pump clip and `build_stance_report.py`
+collates every analysed clip into `stance/report.html`. The study behind it is the
+"move that front foot back" advice from the Progression Project forum: beginners pump
+with the back leg while the front leg stays locked.
+
+```bash
+source venv/bin/activate
+python stance_analysis.py stance/input/clip.mp4 -o stance/output \
+  --label "Kane (fully trimmed)" --group pro --start 10 --end 20
+python build_stance_report.py --web   # rebuilds stance/report.html and the browser app's reference data
+```
+
+Metrics per clip (all from MediaPipe world landmarks, so side-on and nose-cam clips compare):
+knee asymmetry at the bottom of the pump, deepest front and back knee bend, leg drive
+ratio (back knee range of motion over front), stance width as a fraction of leg length,
+front knee ahead of the front ankle, hip position between the feet, and pump frequency.
+The mast is rarely in frame, so feet relative to the mast are read manually off gridded
+frames and listed in the report as approximate fractions of board length.
+
+Each clip produces two videos: the tracked overlay, and a hips-pinned side view
+built from the 3D landmarks (`*_skel.mp4`), so a nose-cam clip and a drone clip
+end up in the same frame of reference. Raw landmarks are cached in `*_pose.npz`,
+so a render can be redone without tracking again (`--from-saved`).
+
+`export_reel.py` compiles the reviewed clips into one shareable video, overlay
+beside skeleton with a title strip, beginners first:
+
+```bash
+python export_reel.py --max-seconds 8      # stance/export/pump_stance_review.mp4
+```
+
+`stance/` is gitignored because the inputs are third-party clips pulled with yt-dlp.
+
+The same metrics run in the browser at `site/apps/pump-stance/index.html`
+(MediaPipe Tasks Vision on WebGL, nothing uploaded). `build_stance_report.py --web`
+embeds the reference-clip numbers into that page between the `REFERENCE` markers.
+
+Setup note: mediapipe 1.0.x crashes on macOS inside the Metal helper, so
+`requirements.txt` should be installed with `mediapipe==0.10.14`, `numpy<2` and
+`opencv-python<4.11` on Python 3.12.
