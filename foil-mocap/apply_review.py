@@ -69,7 +69,7 @@ def main():
             # The overlay video now starts at the new window, so re-base the review entry onto it.
             r["window_offset"] = start or 0
             r["start"] = 0.0 if start is not None else None
-            r["end"] = (end - (start or 0)) if end is not None else None
+            r["end"] = round(end - (start or 0), 1) if end is not None else None
             REVIEW.write_text(json.dumps(review, indent=1))
     if not dry:
         subprocess.run([sys.executable, str(HERE / "build_stance_report.py"), "--web"], check=True)

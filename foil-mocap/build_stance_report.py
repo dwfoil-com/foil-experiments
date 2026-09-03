@@ -15,9 +15,9 @@ GROUP_COL = {"beginner": "var(--s2)", "pro": "var(--s1)", "reference": "var(--s3
 
 METRICS = [
     ("asym_at_bottom_deg", "Knee asymmetry at bottom of pump", "deg", "front knee minus back knee in the frames where the back knee is most bent. This is the moment the forum screenshots show: back leg squatting, front leg still straight."),
-    ("front_knee_p10", "Front knee, deepest bend", "deg", "10th percentile front knee angle. If this stays above about 150 the front leg never really loads."),
     ("knee_asymmetry_deg", "Knee asymmetry", "deg", "front knee angle minus back knee angle. Positive = front leg straighter than back. The forum tell for back-leg pumping is a locked front leg over a bent back leg."),
     ("leg_drive_ratio", "Leg drive ratio", "x", "back knee range of motion divided by front knee range of motion across the pump cycle. 1.0 = both legs working equally. Above 1.5 = mostly back leg."),
+    ("front_knee_p10", "Front knee, deepest bend", "deg", "10th percentile front knee angle. If this stays above about 150 the front leg never really loads."),
     ("stance_width_over_leg", "Stance width", "leg lengths", "ankle to ankle, as a fraction of leg length. Forum guidance is shoulder width or narrower."),
     ("front_knee_over_ankle_m", "Front knee ahead of ankle", "m", "how far the front knee sits ahead of the front ankle along the stance line. Negative = the foot is out in front of the knee."),
     ("hip_fraction", "Hip position", "0=back 1=front", "where the hips sit between the back ankle and the front ankle. A proxy for weight split between the feet."),
@@ -81,6 +81,9 @@ def derived(series):
 
 
 REVIEW_PATH = ROOT / "review.json"
+
+
+REVIEW = {}
 
 
 def load_review():
@@ -230,66 +233,81 @@ def clip_table(clips):
     return "".join(out)
 
 
-def clip_cards(clips):
-    out = []
-    for i, (s, series) in enumerate(clips):
-        cid = f"c{i}"
-        src = f'<a href="{html.escape(s["source"])}" target="_blank">source</a>' if s.get("source") else ""
-        out.append(f"""
+def is_key(s):
+    """Key clips: reviewed as relevant (or unreviewed) and tracked well enough to trust."""
+    rv = REVIEW.get(s["stem"], {})
+    if rv.get("relevant") == "no" or rv.get("relevant") == "unsure":
+        return False
+    return s["tracked_pct"] >= 60
+
+
+def card(s, series, i):
+    cid = f"c{i}"
+    src = f'<a href="{html.escape(s["source"])}" target="_blank">source</a>' if s.get("source") else ""
+    note = html.escape(s.get("note", ""))
+    win = f"{fmt(s.get('start') or 0, 1)} to {fmt(s['end'], 1)} s" if s.get("end") else "whole clip"
+    return f"""
 <section class="card" id="{s['stem']}">
-  <h3><span class="badge" style="background:{GROUP_COL.get(s['group'], '#888')}">{s['group']}</span> {html.escape(s['label'])}</h3>
-  <p class="muted">{html.escape(s.get('note', ''))} {src} &middot; {s['clip']} &middot; tracked {s['tracked_pct']:.0f}% of {s['frames_total']} frames &middot; front foot: {s['front_foot']}</p>
-  <img src="{s['contact_rel']}" alt="contact sheet" class="contact">
   <div class="row">
     <video src="{s['video_rel']}" controls muted preload="metadata"></video>
+    <div>
+      <h3><span class="badge" style="background:{GROUP_COL.get(s['group'], '#888')}">{s['group']}</span> {html.escape(s['label'])}</h3>
+      <p class="muted">{note} {src} &middot; {win} &middot; tracked {s['tracked_pct']:.0f}% &middot; front foot {s['front_foot']}</p>
+      <div class="stats key">
+        <div class="stat"><b>{fmt(s['asym_at_bottom_deg'], 0)}&deg;</b><span>back knee deeper than front at bottom of pump</span></div>
+        <div class="stat"><b>{fmt(s['leg_drive_ratio'], 2)}x</b><span>back knee movement / front knee movement</span></div>
+        <div class="stat"><b>{fmt(s['front_knee_p10'], 0)}&deg; / {fmt(s['back_knee_p10'], 0)}&deg;</b><span>deepest front / back knee bend</span></div>
+      </div>
+      <div class="review" data-stem="{s['stem']}" data-offset="{s.get('start') or 0}">
+        <div class="rv-row">
+          <label><input type="radio" name="rel-{cid}" value="yes"> use it</label>
+          <label><input type="radio" name="rel-{cid}" value="no"> drop</label>
+          <label><input type="radio" name="rel-{cid}" value="unsure"> unsure</label>
+          <select class="rv-group"><option value="pro">pro</option><option value="beginner">beginner</option><option value="reference">reference</option></select>
+          <button type="button" class="rv-btn rv-setstart">Start = now</button>
+          <input type="number" class="rv-start" step="0.1" min="0" placeholder="start">
+          <input type="number" class="rv-end" step="0.1" min="0" placeholder="end">
+          <button type="button" class="rv-btn rv-setend">End = now</button>
+          <button type="button" class="rv-btn rv-play">Play window</button>
+          <span class="rv-now muted">0.0 s</span>
+        </div>
+        <div class="rv-row">
+          <input type="text" class="rv-note" placeholder="note">
+          <span class="rv-state muted"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <details>
+    <summary>Detail: contact sheet, all numbers, knee angles over time</summary>
+    <img src="{s['contact_rel']}" alt="contact sheet" class="contact">
     <div class="stats">
-      <div class="stat"><b>{fmt(s['asym_at_bottom_deg'], 0)}&deg;</b><span>knee asymmetry at bottom of pump (front minus back)</span></div>
-      <div class="stat"><b>{fmt(s['front_knee_p10'], 0)}&deg; / {fmt(s['back_knee_p10'], 0)}&deg;</b><span>deepest front / back knee bend (10th percentile)</span></div>
-      <div class="stat"><b>{fmt(s['leg_drive_ratio'], 2)}x</b><span>leg drive ratio (back ROM / front ROM)</span></div>
       <div class="stat"><b>{fmt(s['stance_width_m']*100, 0)} cm</b><span>stance width ({fmt(s['stance_width_over_leg'], 2)} leg lengths, {fmt(s['stance_width_over_shoulder'], 2)} shoulder widths)</span></div>
-      <div class="stat"><b>{fmt(s['front_knee_over_ankle_m']*100, 0):>3} cm</b><span>front knee ahead of front ankle</span></div>
+      <div class="stat"><b>{fmt(s['front_knee_over_ankle_m']*100, 0)} cm</b><span>front knee ahead of front ankle</span></div>
       <div class="stat"><b>{fmt(s['hip_fraction'], 2)}</b><span>hips between back ankle (0) and front ankle (1)</span></div>
       <div class="stat"><b>{fmt(s['front_knee_deg'], 0)}&deg; / {fmt(s['back_knee_deg'], 0)}&deg;</b><span>median front / back knee angle</span></div>
       <div class="stat"><b>{fmt(s['front_knee_rom_deg'], 0)}&deg; / {fmt(s['back_knee_rom_deg'], 0)}&deg;</b><span>front / back knee range of motion</span></div>
       <div class="stat"><b>{fmt(s['pump_freq_hz'], 2)} Hz</b><span>pump frequency ({s['pump_cycles']} cycles)</span></div>
     </div>
-  </div>
-  <div class="review" data-stem="{s['stem']}" data-offset="{s.get('start') or 0}">
-    <div class="rv-row">
-      <span class="rv-label">Relevant?</span>
-      <label><input type="radio" name="rel-{cid}" value="yes"> pumping, use it</label>
-      <label><input type="radio" name="rel-{cid}" value="no"> not relevant</label>
-      <label><input type="radio" name="rel-{cid}" value="unsure"> unsure</label>
-      <span class="rv-label">Group</span>
-      <select class="rv-group"><option value="pro">pro</option><option value="beginner">beginner</option><option value="reference">reference</option></select>
-    </div>
-    <div class="rv-row">
-      <span class="rv-label">Window</span>
-      <button type="button" class="rv-btn rv-setstart">Start = now</button>
-      <input type="number" class="rv-start" step="0.1" min="0" placeholder="start s"> to
-      <input type="number" class="rv-end" step="0.1" min="0" placeholder="end s">
-      <button type="button" class="rv-btn rv-setend">End = now</button>
-      <button type="button" class="rv-btn rv-play">Play window</button>
-      <span class="rv-now muted">0.0 s</span>
-      <span class="muted">{'times are on this overlay video, which starts at source ' + fmt(s.get('start'), 1) + ' s' if s.get('start') else 'times are seconds into the clip'}</span>
-    </div>
-    <div class="rv-row">
-      <span class="rv-label">Note</span>
-      <input type="text" class="rv-note" placeholder="what to look at, or why it is out">
-      <span class="rv-state muted"></span>
-    </div>
-  </div>
-  <h4>Knee angles over time</h4>
-  {line_chart(series, cid)}
-</section>""")
-    return "".join(out)
+    {line_chart(series, cid)}
+  </details>
+</section>"""
 
 
 def build():
+    global REVIEW
+    REVIEW = load_review()
     clips = load()
-    dots = "".join(
-        f'<figure><figcaption><b>{title}</b> <span class="muted">{html.escape(desc)}</span></figcaption>{dot_plot(clips, key, title, unit)}</figure>'
-        for key, title, unit, desc in METRICS)
+    key = [(s, ser) for s, ser in clips if is_key(s)]
+    other = [(s, ser) for s, ser in clips if not is_key(s)]
+    key_cards = "".join(card(s, ser, i) for i, (s, ser) in enumerate(key))
+    other_cards = "".join(card(s, ser, 1000 + i) for i, (s, ser) in enumerate(other))
+    top_dots = "".join(
+        f'<figure><figcaption><b>{title}</b> <span class="muted">{html.escape(desc)}</span></figcaption>{dot_plot(clips, k, title, unit)}</figure>'
+        for k, title, unit, desc in METRICS[:2])
+    all_dots = "".join(
+        f'<figure><figcaption><b>{title}</b> <span class="muted">{html.escape(desc)}</span></figcaption>{dot_plot(clips, k, title, unit)}</figure>'
+        for k, title, unit, desc in METRICS[2:])
     page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pump Stance Review</title>
@@ -299,8 +317,8 @@ def build():
 @media (prefers-color-scheme:dark){{:root:not([data-theme=light]){{color-scheme:dark;--surface:#1a1a19;--surface-2:#242422;--text:#fff;--text-2:#c3c2b7;--muted:#8f8e87;--grid:#33332f;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--front:#3987e5;--back:#d95926}}}}
 :root[data-theme=dark]{{color-scheme:dark;--surface:#1a1a19;--surface-2:#242422;--text:#fff;--text-2:#c3c2b7;--muted:#8f8e87;--grid:#33332f;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--front:#3987e5;--back:#d95926}}
 body{{margin:0;background:var(--surface);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}}
-main{{max-width:1100px;margin:0 auto;padding:24px 20px 80px}}
-h1{{font-size:26px;margin:0 0 4px}} h2{{font-size:20px;margin:36px 0 8px}} h3{{font-size:17px;margin:0 0 4px}} h4{{font-size:14px;color:var(--text-2);margin:14px 0 4px}}
+main{{max-width:1100px;margin:0 auto;padding:0 20px 80px}}
+h1{{font-size:24px;margin:16px 0 4px}} h2{{font-size:18px;margin:28px 0 8px}} h3{{font-size:16px;margin:0 0 2px}}
 p{{margin:6px 0}} .muted{{color:var(--muted);font-size:13px}}
 table{{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0}} th,td{{padding:6px 8px;text-align:left;border-bottom:1px solid var(--grid);white-space:nowrap}} th{{color:var(--text-2);font-weight:600}}
 .tablewrap{{overflow-x:auto}}
@@ -309,23 +327,26 @@ figure{{margin:0;background:var(--surface-2);border-radius:8px;padding:10px}} fi
 svg.dot,svg.line{{width:100%;height:auto;display:block}}
 .grid{{stroke:var(--grid);stroke-width:1}} .zero{{stroke:var(--text-2);stroke-width:1;stroke-dasharray:3 3}}
 .tick,.rowlab,.axis{{font-size:11px;fill:var(--text-2)}} .rowlab{{font-size:12px}}
-.card{{background:var(--surface-2);border-radius:10px;padding:16px;margin:18px 0}}
+.card{{background:var(--surface-2);border-radius:10px;padding:14px;margin:14px 0}}
 .badge{{display:inline-block;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;vertical-align:middle;margin-right:4px}}
 .contact{{width:100%;border-radius:6px;display:block;margin:8px 0}}
-.row{{display:grid;grid-template-columns:minmax(260px,1fr) 1fr;gap:14px;align-items:start}}
-video{{width:100%;max-height:520px;background:#000;border-radius:6px}}
-.stats{{display:grid;grid-template-columns:1fr 1fr;gap:8px}} .stat{{background:var(--surface);border-radius:6px;padding:8px 10px}} .stat b{{font-size:20px;display:block}} .stat span{{font-size:12px;color:var(--text-2)}}
+.row{{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:14px;align-items:start}}
+video{{width:100%;max-height:420px;background:#000;border-radius:6px}}
+.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:8px 0}} .stat{{background:var(--surface);border-radius:6px;padding:8px 10px}} .stat b{{font-size:20px;display:block}} .stat span{{font-size:12px;color:var(--text-2)}}
+.stats.key .stat b{{font-size:24px}}
 path.front{{fill:none;stroke:var(--front);stroke-width:2}} path.back{{fill:none;stroke:var(--back);stroke-width:2}}
 .cross{{stroke:var(--text-2);stroke-width:1}} .mf{{fill:var(--front);stroke:var(--surface);stroke-width:2}} .mb{{fill:var(--back);stroke:var(--surface);stroke-width:2}}
 .legend{{display:flex;gap:16px;font-size:12px;color:var(--text-2);margin-top:4px}} .sw{{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}} .sw.front{{background:var(--front)}} .sw.back{{background:var(--back)}}
 .tip{{margin-left:auto;font-variant-numeric:tabular-nums}}
 ul{{padding-left:20px}} li{{margin:3px 0}}
-.review{{background:var(--surface);border-radius:8px;padding:10px 12px;margin:10px 0;border-left:4px solid var(--grid)}}
+details{{margin-top:8px}} summary{{cursor:pointer;color:var(--text-2);font-size:13px}} details[open] summary{{margin-bottom:8px}}
+details.section{{background:var(--surface-2);border-radius:10px;padding:10px 14px;margin:14px 0}} details.section summary{{font-size:16px;font-weight:600;color:var(--text)}}
+.review{{background:var(--surface);border-radius:8px;padding:8px 10px;margin:8px 0 0;border-left:4px solid var(--grid)}}
 .review.yes{{border-left-color:var(--s1)}} .review.no{{border-left-color:var(--s2)}} .review.unsure{{border-left-color:var(--s3)}}
-.rv-row{{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:4px 0;font-size:13px}} .rv-label{{color:var(--text-2);min-width:64px;font-weight:600}}
-.rv-btn{{font:inherit;font-size:12px;padding:4px 9px;border-radius:6px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text);cursor:pointer}}
-.review input[type=number]{{width:72px;font:inherit;font-size:13px;padding:3px 5px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
-.review input[type=text]{{flex:1;min-width:200px;font:inherit;font-size:13px;padding:3px 6px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
+.rv-row{{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:3px 0;font-size:13px}}
+.rv-btn{{font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text);cursor:pointer}}
+.review input[type=number]{{width:64px;font:inherit;font-size:13px;padding:3px 5px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
+.review input[type=text]{{flex:1;min-width:160px;font:inherit;font-size:13px;padding:3px 6px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
 .review select{{font:inherit;font-size:13px;padding:3px 5px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
 .rvbar{{position:sticky;top:0;z-index:5;background:var(--surface-2);border-bottom:1px solid var(--grid);padding:8px 12px;margin:0 -20px 12px;display:flex;gap:14px;align-items:center;font-size:13px;flex-wrap:wrap}}
 .rvbar b{{font-variant-numeric:tabular-nums}}
@@ -333,41 +354,43 @@ ul{{padding-left:20px}} li{{margin:3px 0}}
 </style></head><body><main>
 <div class="rvbar"><span>Review: <b id="rv-count">0</b> of <b>{len(clips)}</b> clips marked</span><span id="rv-server" class="muted">checking save server…</span><button type="button" class="rv-btn" id="rv-copy">Copy review JSON</button><button type="button" class="rv-btn" id="rv-next">Jump to next unreviewed</button></div>
 <h1>Pump Stance Review</h1>
-<p class="muted">Pro versus beginner foot placement from MediaPipe pose tracking. Front leg is drawn red and back leg cyan in the overlays. Angles and widths come from MediaPipe world landmarks (metres, hip centred), so side-on and nose-cam clips are on the same scale.</p>
+<p class="muted">Does the front leg share the pump? Two numbers per clip: how much deeper the back knee bends than the front at the bottom of each pump (0 means equal), and how much more the back knee moves than the front over the cycle (1.0 means equal). Front leg is red in the overlays, back leg cyan.</p>
 
+<div class="grid2">{top_dots}</div>
+
+<h2>Key clips</h2>
+{key_cards}
+
+<details class="section"><summary>Other clips ({len(other)}: dropped, unsure or poorly tracked)</summary>
+{other_cards}
+</details>
+
+<details class="section"><summary>All the numbers</summary>
 <h2>Group medians</h2>
 <div class="tablewrap">{group_summary(clips)}</div>
 <p class="muted">Clips with under 40% tracked frames are excluded from the medians. Reference clips are shown but not pooled.</p>
-
-<h2>Metric by clip</h2>
-<div class="grid2">{dots}</div>
-
+<h2>Other metrics</h2>
+<div class="grid2">{all_dots}</div>
 <h2>All clips</h2>
 <div class="tablewrap">{clip_table(clips)}</div>
-
-<h2>Clips</h2>
-{clip_cards(clips)}
-
 <h2>Feet relative to the mast (manual reads)</h2>
 <p class="muted">Read by eye off gridded frames, as a fraction of the visible board length, so perspective and board size are not corrected. Every rider here stands with the back foot roughly over the mast. The front foot lands 20 to 30 percent of board length ahead in both groups, so foot-to-mast distance on its own does not separate them. The difference shows up in the knees and hips.</p>
 <div class="tablewrap">{manual_board_table()}</div>
+</details>
 
-<h2>How to read the numbers</h2>
+<details class="section"><summary>How it is measured, and the limits</summary>
 <ul>
-<li><b>Knee asymmetry at bottom of pump</b>: front knee angle minus back knee angle, taken only in the frames where the back knee is most bent. The plain median over the clip is also in the table. A big positive number is the picture from the forum. The front leg is locked out and the back leg is doing the squat.</li>
+<li><b>Knee asymmetry at bottom of pump</b>: front knee angle minus back knee angle, taken only in the frames where the back knee is most bent. A big positive number means the back leg squats while the front leg stays straight.</li>
 <li><b>Leg drive ratio</b>: back knee range of motion divided by front knee range of motion. Near 1.0 means both legs pump. Well above 1.0 means the back leg pumps and the front leg is a strut.</li>
+<li><b>Deepest knee bend</b>: the 10th percentile knee angle over the clip. 180 is locked straight.</li>
 <li><b>Stance width</b>: ankle to ankle in metres, also as a fraction of leg length and of shoulder width. MediaPipe world scale is estimated, so treat centimetres as approximate and compare the ratios.</li>
-<li><b>Front knee ahead of ankle</b>: positive means the knee sits ahead of the foot, which is the tucked position. Negative means the foot is out ahead of the knee.</li>
-<li><b>Hip fraction</b>: 0 is over the back ankle, 1 is over the front ankle. This is the best available proxy for where the weight sits between the feet.</li>
+<li><b>Hip position</b>: 0 is over the back ankle, 1 is over the front ankle. A proxy for where the weight sits between the feet.</li>
+<li><b>Mast offset is not measured.</b> The mast is under water or out of frame in almost every clip. The contact sheets show feet on the board for a manual read.</li>
+<li><b>Pump frequency</b> comes from image space, so handheld or drone camera motion contaminates it.</li>
+<li><b>Front foot detection</b> uses the head leading the hips along the stance line and is listed per clip so it can be checked against the overlay.</li>
+<li>Small riders are cropped and upscaled before tracking. Tracked percentage tells you how much to trust a clip.</li>
 </ul>
-
-<h2>Limits</h2>
-<ul>
-<li><b>Mast offset is not measured.</b> The mast is under water or out of frame in almost every clip, so feet relative to the mast cannot be tracked automatically. The hip fraction plus stance width give the weight split between the feet, and the contact sheets show feet on the board for a manual read. The earlier mocap sample and Beginner B are the two clips where the mast or box is visible for a reference mark.</li>
-<li><b>Pump frequency and hip amplitude</b> come from image space, so handheld or drone camera motion contaminates them.</li>
-<li><b>Front foot detection</b> uses the head leading the hips along the stance line. It is listed per clip so it can be checked against the contact sheet.</li>
-<li>Small riders (drone footage) are cropped and upscaled before tracking. Tracked percentage tells you how much to trust a clip.</li>
-</ul>
+</details>
 </main>
 <script>
 const SAVE_URL = "http://127.0.0.1:8767/review.json";
@@ -447,7 +470,7 @@ document.querySelectorAll('svg.line').forEach(svg=>{{
 </script>
 </body></html>"""
     (ROOT / "report.html").write_text(page)
-    print(f"wrote {ROOT / 'report.html'} with {len(clips)} clips")
+    print(f"wrote {ROOT / 'report.html'} with {len(clips)} clips ({len(key)} key)")
 
 
 WEB_APP = Path(__file__).parent.parent / "site" / "apps" / "pump-stance" / "index.html"
