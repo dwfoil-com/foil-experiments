@@ -80,6 +80,16 @@ def derived(series):
                 asym_at_bottom_deg=pct(bottom, 0.5) if bottom else nan)
 
 
+REVIEW_PATH = ROOT / "review.json"
+
+
+def load_review():
+    try:
+        return json.load(open(REVIEW_PATH))
+    except Exception:
+        return {}
+
+
 def load():
     clips = []
     for p in sorted(OUT.glob("*_stance.json")):
@@ -244,6 +254,30 @@ def clip_cards(clips):
       <div class="stat"><b>{fmt(s['pump_freq_hz'], 2)} Hz</b><span>pump frequency ({s['pump_cycles']} cycles)</span></div>
     </div>
   </div>
+  <div class="review" data-stem="{s['stem']}" data-offset="{s.get('start') or 0}">
+    <div class="rv-row">
+      <span class="rv-label">Relevant?</span>
+      <label><input type="radio" name="rel-{cid}" value="yes"> pumping, use it</label>
+      <label><input type="radio" name="rel-{cid}" value="no"> not relevant</label>
+      <label><input type="radio" name="rel-{cid}" value="unsure"> unsure</label>
+      <span class="rv-label">Group</span>
+      <select class="rv-group"><option value="pro">pro</option><option value="beginner">beginner</option><option value="reference">reference</option></select>
+    </div>
+    <div class="rv-row">
+      <span class="rv-label">Window</span>
+      <button type="button" class="rv-btn rv-setstart">Start = now</button>
+      <input type="number" class="rv-start" step="0.1" min="0" placeholder="start s"> to
+      <input type="number" class="rv-end" step="0.1" min="0" placeholder="end s">
+      <button type="button" class="rv-btn rv-setend">End = now</button>
+      <button type="button" class="rv-btn rv-play">Play window</button>
+      <span class="rv-now muted">0.0 s</span>
+    </div>
+    <div class="rv-row">
+      <span class="rv-label">Note</span>
+      <input type="text" class="rv-note" placeholder="what to look at, or why it is out">
+      <span class="rv-state muted"></span>
+    </div>
+  </div>
   <h4>Knee angles over time</h4>
   {line_chart(series, cid)}
 </section>""")
@@ -285,8 +319,18 @@ path.front{{fill:none;stroke:var(--front);stroke-width:2}} path.back{{fill:none;
 .legend{{display:flex;gap:16px;font-size:12px;color:var(--text-2);margin-top:4px}} .sw{{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}} .sw.front{{background:var(--front)}} .sw.back{{background:var(--back)}}
 .tip{{margin-left:auto;font-variant-numeric:tabular-nums}}
 ul{{padding-left:20px}} li{{margin:3px 0}}
+.review{{background:var(--surface);border-radius:8px;padding:10px 12px;margin:10px 0;border-left:4px solid var(--grid)}}
+.review.yes{{border-left-color:var(--s1)}} .review.no{{border-left-color:var(--s2)}} .review.unsure{{border-left-color:var(--s3)}}
+.rv-row{{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:4px 0;font-size:13px}} .rv-label{{color:var(--text-2);min-width:64px;font-weight:600}}
+.rv-btn{{font:inherit;font-size:12px;padding:4px 9px;border-radius:6px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text);cursor:pointer}}
+.review input[type=number]{{width:72px;font:inherit;font-size:13px;padding:3px 5px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
+.review input[type=text]{{flex:1;min-width:200px;font:inherit;font-size:13px;padding:3px 6px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
+.review select{{font:inherit;font-size:13px;padding:3px 5px;border-radius:5px;border:1px solid var(--grid);background:var(--surface-2);color:var(--text)}}
+.rvbar{{position:sticky;top:0;z-index:5;background:var(--surface-2);border-bottom:1px solid var(--grid);padding:8px 12px;margin:0 -20px 12px;display:flex;gap:14px;align-items:center;font-size:13px;flex-wrap:wrap}}
+.rvbar b{{font-variant-numeric:tabular-nums}}
 @media (max-width:760px){{.row{{grid-template-columns:1fr}} .grid2{{grid-template-columns:1fr}}}}
 </style></head><body><main>
+<div class="rvbar"><span>Review: <b id="rv-count">0</b> of <b>{len(clips)}</b> clips marked</span><span id="rv-server" class="muted">checking save server…</span><button type="button" class="rv-btn" id="rv-copy">Copy review JSON</button><button type="button" class="rv-btn" id="rv-next">Jump to next unreviewed</button></div>
 <h1>Pump Stance Review</h1>
 <p class="muted">Pro versus beginner foot placement from MediaPipe pose tracking. Front leg is drawn red and back leg cyan in the overlays. Angles and widths come from MediaPipe world landmarks (metres, hip centred), so side-on and nose-cam clips are on the same scale.</p>
 
@@ -325,6 +369,64 @@ ul{{padding-left:20px}} li{{margin:3px 0}}
 </ul>
 </main>
 <script>
+const SAVE_URL = "http://127.0.0.1:8767/review.json";
+const REVIEW = {json.dumps(load_review())};
+const TOTAL = {len(clips)};
+let serverOk = false;
+const stateOf = box => {{
+  const rel = box.querySelector('input[type=radio]:checked');
+  const num = el => el.value === '' ? null : +el.value;
+  const off = +box.dataset.offset || 0;
+  return {{ relevant: rel ? rel.value : null, group: box.querySelector('.rv-group').value,
+           start: num(box.querySelector('.rv-start')), end: num(box.querySelector('.rv-end')), window_offset: off,
+           note: box.querySelector('.rv-note').value, updated: new Date().toISOString() }};
+}};
+const allState = () => {{ const o = {{}}; document.querySelectorAll('.review').forEach(b => {{ const st = stateOf(b); if (st.relevant || st.note || st.start != null || st.end != null) o[b.dataset.stem] = st; }}); return o; }};
+function paint(box) {{
+  const st = stateOf(box); box.classList.remove('yes', 'no', 'unsure'); if (st.relevant) box.classList.add(st.relevant);
+  document.getElementById('rv-count').textContent = Object.values(allState()).filter(x => x.relevant).length;
+}}
+let saveTimer = null;
+function save(box) {{
+  paint(box);
+  const data = allState();
+  try {{ localStorage.setItem('pump-stance-review', JSON.stringify(data)); }} catch (e) {{}}
+  const state = box.querySelector('.rv-state'); state.textContent = 'saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => fetch(SAVE_URL, {{ method: 'POST', headers: {{ 'Content-Type': 'application/json' }}, body: JSON.stringify(data) }})
+    .then(r => {{ state.textContent = r.ok ? 'saved to stance/review.json' : 'server error, kept in browser'; }})
+    .catch(() => {{ state.textContent = 'save server off, kept in browser (use Copy review JSON)'; }}), 250);
+}}
+function apply(box, st) {{
+  if (!st) return;
+  if (st.relevant) {{ const r = box.querySelector(`input[type=radio][value=${{st.relevant}}]`); if (r) r.checked = true; }}
+  if (st.group) box.querySelector('.rv-group').value = st.group;
+  if (st.start != null) box.querySelector('.rv-start').value = st.start;
+  if (st.end != null) box.querySelector('.rv-end').value = st.end;
+  if (st.note) box.querySelector('.rv-note').value = st.note;
+  paint(box);
+}}
+document.querySelectorAll('.review').forEach(box => {{
+  const card = box.closest('.card'), video = card.querySelector('video'), off = +box.dataset.offset || 0;
+  const now = box.querySelector('.rv-now'), startIn = box.querySelector('.rv-start'), endIn = box.querySelector('.rv-end');
+  const grp = card.querySelector('.badge'); if (grp) box.querySelector('.rv-group').value = grp.textContent.trim();
+  video.addEventListener('timeupdate', () => {{ now.textContent = (video.currentTime + off).toFixed(1) + ' s'; }});
+  box.querySelector('.rv-setstart').onclick = () => {{ startIn.value = (video.currentTime + off).toFixed(1); save(box); }};
+  box.querySelector('.rv-setend').onclick = () => {{ endIn.value = (video.currentTime + off).toFixed(1); save(box); }};
+  box.querySelector('.rv-play').onclick = () => {{
+    const a = (startIn.value === '' ? off : +startIn.value) - off, b = endIn.value === '' ? video.duration : +endIn.value - off;
+    video.currentTime = Math.max(0, a); video.play();
+    const stop = () => {{ if (video.currentTime >= b) {{ video.pause(); video.removeEventListener('timeupdate', stop); }} }};
+    video.addEventListener('timeupdate', stop);
+  }};
+  box.querySelectorAll('input, select').forEach(el => el.addEventListener('change', () => save(box)));
+  apply(box, REVIEW[box.dataset.stem]);
+}});
+try {{ const local = JSON.parse(localStorage.getItem('pump-stance-review') || '{{}}'); document.querySelectorAll('.review').forEach(b => {{ const st = local[b.dataset.stem]; if (st && (!REVIEW[b.dataset.stem] || st.updated > REVIEW[b.dataset.stem].updated)) apply(b, st); }}); }} catch (e) {{}}
+fetch(SAVE_URL).then(r => r.json()).then(d => {{ serverOk = true; document.getElementById('rv-server').textContent = 'auto-saving to stance/review.json'; document.querySelectorAll('.review').forEach(b => {{ const st = d[b.dataset.stem]; const cur = stateOf(b); if (st && (!cur.relevant || st.updated > (cur.updated || ''))) apply(b, st); }}); }})
+  .catch(() => {{ document.getElementById('rv-server').textContent = 'save server not running: choices stay in this browser, use Copy review JSON to hand them over'; }});
+document.getElementById('rv-copy').onclick = () => {{ const txt = JSON.stringify(allState(), null, 1); navigator.clipboard.writeText(txt).then(() => {{ document.getElementById('rv-copy').textContent = 'Copied'; setTimeout(() => document.getElementById('rv-copy').textContent = 'Copy review JSON', 1500); }}); }};
+document.getElementById('rv-next').onclick = () => {{ const b = [...document.querySelectorAll('.review')].find(x => !stateOf(x).relevant); if (b) b.closest('.card').scrollIntoView({{ behavior: 'smooth', block: 'start' }}); }};
 document.querySelectorAll('svg.line').forEach(svg=>{{
   const t=svg.dataset.t.split(',').map(Number), f=svg.dataset.f.split(',').map(Number), b=svg.dataset.b.split(',').map(Number);
   const hit=svg.querySelector('.hit'), cross=svg.querySelector('.cross'), mf=svg.querySelector('.mf'), mb=svg.querySelector('.mb');
