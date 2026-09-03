@@ -15,9 +15,9 @@ GROUP_COL = {"beginner": "var(--s2)", "pro": "var(--s1)", "reference": "var(--s3
 
 METRICS = [
     ("asym_at_bottom_deg", "Knee asymmetry at bottom of pump", "deg", "front knee minus back knee in the frames where the back knee is most bent. This is the moment the forum screenshots show: back leg squatting, front leg still straight."),
-    ("knee_asymmetry_deg", "Knee asymmetry", "deg", "front knee angle minus back knee angle. Positive = front leg straighter than back. The forum tell for back-leg pumping is a locked front leg over a bent back leg."),
     ("leg_drive_ratio", "Leg drive ratio", "x", "back knee range of motion divided by front knee range of motion across the pump cycle. 1.0 = both legs working equally. Above 1.5 = mostly back leg."),
     ("front_knee_p10", "Front knee, deepest bend", "deg", "10th percentile front knee angle. If this stays above about 150 the front leg never really loads."),
+    ("knee_asymmetry_deg", "Knee asymmetry", "deg", "front knee angle minus back knee angle. Positive = front leg straighter than back. The forum tell for back-leg pumping is a locked front leg over a bent back leg."),
     ("stance_width_over_leg", "Stance width", "leg lengths", "ankle to ankle, as a fraction of leg length. Forum guidance is shoulder width or narrower."),
     ("front_knee_over_ankle_m", "Front knee ahead of ankle", "m", "how far the front knee sits ahead of the front ankle along the stance line. Negative = the foot is out in front of the knee."),
     ("hip_fraction", "Hip position", "0=back 1=front", "where the hips sit between the back ankle and the front ankle. A proxy for weight split between the feet."),
